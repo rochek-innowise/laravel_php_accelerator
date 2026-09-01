@@ -13,6 +13,10 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
 // Identity, never tenant-scoped (AD-001): a trainer's roster is a query over trainer_players.
 // `owner_user_id` and `user_id` are not mass-assignable: a request-supplied owner would let one
 // account claim another family's child. Create through $user->ownedPlayerProfiles().
+/**
+ * @property bool $is_child
+ * @property bool $token_spend_requires_approval
+ */
 #[Fillable([
     'name',
     'birth_date',

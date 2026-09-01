@@ -27,7 +27,7 @@ final class MassAssignmentTest extends TestCase
             'role' => Role::SuperAdmin,
         ]);
 
-        $this->assertNull($user->role);
+        $this->assertArrayNotHasKey('role', $user->getAttributes());
     }
 
     public function test_role_and_status_cannot_be_mass_assigned_on_update(): void
@@ -65,8 +65,8 @@ final class MassAssignmentTest extends TestCase
         ]);
 
         $this->assertSame('Claimed Child', $player->name);
-        $this->assertNull($player->owner_user_id);
-        $this->assertNull($player->user_id);
+        $this->assertArrayNotHasKey('owner_user_id', $player->getAttributes());
+        $this->assertArrayNotHasKey('user_id', $player->getAttributes());
 
         $coach = new CoachProfile([
             'status' => 'active',
@@ -74,15 +74,15 @@ final class MassAssignmentTest extends TestCase
             'trainer_profile_id' => 99,
         ]);
 
-        $this->assertNull($coach->user_id);
-        $this->assertNull($coach->trainer_profile_id);
+        $this->assertArrayNotHasKey('user_id', $coach->getAttributes());
+        $this->assertArrayNotHasKey('trainer_profile_id', $coach->getAttributes());
 
         $trainer = new TrainerProfile([
             'business_name' => 'Claimed Academy',
             'user_id' => $victim->id,
         ]);
 
-        $this->assertNull($trainer->user_id);
+        $this->assertArrayNotHasKey('user_id', $trainer->getAttributes());
     }
 
     /** An audit row guards every attribute, so a stray mass assignment fails loudly. */
@@ -98,7 +98,7 @@ final class MassAssignmentTest extends TestCase
     {
         $profile = CoachProfile::factory()->create();
 
-        $this->assertNotNull($profile->user_id);
-        $this->assertNotNull($profile->trainer_profile_id);
+        $this->assertTrue($profile->user()->exists());
+        $this->assertTrue($profile->trainerProfile()->exists());
     }
 }

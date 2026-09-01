@@ -14,6 +14,9 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
 // `user_id` and `trainer_profile_id` are not mass-assignable: a request-supplied
 // trainer_profile_id would place a coach inside someone else's organisation, which is the leakage
 // NFR-010 forbids. Create through the relationship instead.
+/**
+ * @property bool $is_public
+ */
 #[Fillable([
     'status',
     'bio',

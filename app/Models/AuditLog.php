@@ -11,6 +11,9 @@ use Illuminate\Database\Eloquent\Relations\MorphTo;
 // No Fillable attribute on purpose: an audit row is written only by AuditLogger, and a
 // mass-assignable actor_user_id would make the trail forgeable. Eloquent guards everything by
 // default, so any write here has to be deliberate.
+/**
+ * @property array<string, mixed>|null $metadata
+ */
 class AuditLog extends Model
 {
     /**

@@ -15,7 +15,7 @@ use Illuminate\Database\Eloquent\Factories\Factory;
 class CoachProfileFactory extends Factory
 {
     /**
-     * @return array<string, mixed>
+     * @return array<model-property<CoachProfile>, mixed>
      */
     public function definition(): array
     {

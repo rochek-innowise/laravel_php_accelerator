@@ -20,6 +20,12 @@ use Illuminate\Notifications\Notifiable;
 // `role`, `status` and `is_child_account` are deliberately absent: they decide privilege, and a
 // future `update($request->validated())` anywhere would otherwise be a role-escalation hole. The
 // two actions that own them use forceFill; factories bypass the allow-list already.
+/**
+ * @property Role $role
+ * @property UserStatus $status
+ * @property bool $is_child_account
+ * @property-read string $name
+ */
 #[Fillable([
     'email',
     'password',

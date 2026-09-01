@@ -1,0 +1,19 @@
+includes:
+    - vendor/larastan/larastan/extension.neon
+
+parameters:
+    # Level 5 passes with no baseline. Level 6 reports 17, level 7 twenty, level 8 fifty-five —
+    # mostly missing iterable value types and nullable access in the framework's seams. Raising it
+    # is a ratchet for a separate change, not something to bolt onto a review pass.
+    level: 5
+
+    paths:
+        - app
+        - config
+        - database
+        - routes
+        - tests
+
+    # checkModelProperties stays off: it types attributes from the schema, so an unsaved model's
+    # null attribute reads as a non-null column and every guarded-attribute assertion looks
+    # impossible. The @property docblocks on the models cover what actually needs covering.

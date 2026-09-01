@@ -80,12 +80,15 @@ final class UsersDirectoryTest extends TestCase
         ]);
 
         foreach (['Zinaida Petrenko', 'Zinaida', 'Petrenko', 'zin@example.test'] as $term) {
-            Livewire::actingAs($admin)
+            $users = Livewire::actingAs($admin)
                 ->test(UsersTable::class)
                 ->set('search', $term)
-                ->assertViewHas('users', fn ($users): bool => $users->contains(
-                    fn (User $user): bool => $user->email === 'zin@example.test'
-                ), "Search for [{$term}] missed the row.");
+                ->viewData('users');
+
+            $this->assertTrue(
+                $users->contains(fn (User $user): bool => $user->email === 'zin@example.test'),
+                "Search for [{$term}] missed the row.",
+            );
         }
     }
 

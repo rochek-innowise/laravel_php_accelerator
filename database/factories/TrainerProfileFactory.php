@@ -15,7 +15,7 @@ use Illuminate\Support\Str;
 class TrainerProfileFactory extends Factory
 {
     /**
-     * @return array<string, mixed>
+     * @return array<model-property<TrainerProfile>, mixed>
      */
     public function definition(): array
     {
