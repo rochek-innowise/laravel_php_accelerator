@@ -69,6 +69,38 @@ final class UsersDirectoryTest extends TestCase
             ->assertDontSee($trainer->email);
     }
 
+    /** The Name column shows a composed name, so that is the string the search has to match. */
+    public function test_the_search_matches_a_full_name(): void
+    {
+        $admin = User::factory()->superAdmin()->create();
+        User::factory()->create([
+            'first_name' => 'Zinaida',
+            'last_name' => 'Petrenko',
+            'email' => 'zin@example.test',
+        ]);
+
+        foreach (['Zinaida Petrenko', 'Zinaida', 'Petrenko', 'zin@example.test'] as $term) {
+            Livewire::actingAs($admin)
+                ->test(UsersTable::class)
+                ->set('search', $term)
+                ->assertViewHas('users', fn ($users): bool => $users->contains(
+                    fn (User $user): bool => $user->email === 'zin@example.test'
+                ), "Search for [{$term}] missed the row.");
+        }
+    }
+
+    /** An unescaped wildcard turned the search box into "show me everything". */
+    public function test_a_wildcard_in_the_search_term_is_escaped(): void
+    {
+        $admin = User::factory()->superAdmin()->create();
+        User::factory()->count(3)->create();
+
+        Livewire::actingAs($admin)
+            ->test(UsersTable::class)
+            ->set('search', '%')
+            ->assertViewHas('users', fn ($users): bool => $users->isEmpty());
+    }
+
     /** NFR-002: the listing must stay paginated rather than loading every row. */
     public function test_the_listing_is_paginated(): void
     {

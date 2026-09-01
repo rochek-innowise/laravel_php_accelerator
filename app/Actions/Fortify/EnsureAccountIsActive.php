@@ -4,15 +4,16 @@ declare(strict_types=1);
 
 namespace App\Actions\Fortify;
 
+use App\Enums\UserStatus;
 use App\Models\User;
 use Illuminate\Http\Request;
 use Illuminate\Validation\ValidationException;
 use Laravel\Fortify\Fortify;
 
 /**
- * FR-017: a non-active account cannot log in. Registered in the Fortify pipeline *after*
- * EnsureLoginIsNotThrottled, so repeated probing hits the throttle first and the message never
- * becomes an unthrottled account-enumeration oracle.
+ * FR-017 at the login boundary: refuse with a field-level error so the form can show it. The
+ * per-request half of the same rule lives in EnsureAccountRemainsActive, which handles sessions
+ * that were already open when the account was deactivated.
  */
 final class EnsureAccountIsActive
 {
@@ -24,7 +25,7 @@ final class EnsureAccountIsActive
             auth()->logout();
 
             throw ValidationException::withMessages([
-                Fortify::username() => __('Account deactivated. Contact support.'),
+                Fortify::username() => __(UserStatus::DEACTIVATED_MESSAGE),
             ]);
         }
 

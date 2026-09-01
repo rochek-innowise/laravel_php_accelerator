@@ -31,6 +31,20 @@ final class LoginTest extends TestCase
         $this->assertNotNull($user->fresh()->last_login_at);
     }
 
+    /**
+     * The Login event fires from AttemptToAuthenticate, before the status is inspected, so a
+     * refused attempt used to stamp last_login_at and make a locked-out account look active.
+     */
+    public function test_a_refused_login_does_not_record_a_login_timestamp(): void
+    {
+        $inactive = User::factory()->status(UserStatus::Inactive)->create(['last_login_at' => null]);
+
+        $this->post('/login', ['email' => $inactive->email, 'password' => 'password'])
+            ->assertSessionHasErrors('email');
+
+        $this->assertNull($inactive->fresh()->last_login_at);
+    }
+
     public function test_a_wrong_password_is_rejected(): void
     {
         $user = User::factory()->create();

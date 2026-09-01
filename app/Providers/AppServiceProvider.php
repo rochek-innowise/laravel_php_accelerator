@@ -33,10 +33,7 @@ class AppServiceProvider extends ServiceProvider
     public function boot(): void
     {
         $this->registerGates();
-
-        Event::listen(Login::class, function (Login $event): void {
-            $event->user->forceFill(['last_login_at' => now()])->saveQuietly();
-        });
+        $this->recordSuccessfulLogins();
     }
 
     /**
@@ -65,6 +62,23 @@ class AppServiceProvider extends ServiceProvider
             }
 
             return null;
+        });
+    }
+
+    /**
+     * Fortify fires Login from AttemptToAuthenticate, which runs *before* EnsureAccountIsActive —
+     * so an attempt that is about to be refused reaches this listener. Skipping non-active
+     * accounts keeps last_login_at meaning "last time this account actually got in", which is
+     * what an admin reads when judging activity on a deactivated account (NFR-011).
+     */
+    protected function recordSuccessfulLogins(): void
+    {
+        Event::listen(Login::class, function (Login $event): void {
+            if ($event->user instanceof User && ! $event->user->status->canLogIn()) {
+                return;
+            }
+
+            $event->user->forceFill(['last_login_at' => now()])->saveQuietly();
         });
     }
 

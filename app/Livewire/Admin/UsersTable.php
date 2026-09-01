@@ -60,11 +60,13 @@ final class UsersTable extends Component
             ->when($this->roleFilter !== '', fn (Builder $q) => $q->where('role', $this->roleFilter))
             ->when($this->statusFilter !== '', fn (Builder $q) => $q->where('status', $this->statusFilter))
             ->when($this->search !== '', function (Builder $q): void {
-                $term = '%'.$this->search.'%';
+                // Wildcards are escaped: an unescaped `%` in the box matched every row, and the
+                // composed name is matched as one string so the term a user reads in the Name
+                // column ("Ada Lovelace") is the term that finds the row.
+                $term = '%'.addcslashes($this->search, '%_\\').'%';
 
                 $q->where(function (Builder $inner) use ($term): void {
-                    $inner->where('first_name', 'like', $term)
-                        ->orWhere('last_name', 'like', $term)
+                    $inner->whereRaw("CONCAT_WS(' ', first_name, last_name) LIKE ?", [$term])
                         ->orWhere('email', 'like', $term);
                 });
             })

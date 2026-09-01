@@ -30,15 +30,19 @@ final class CreateTrainerAccount
     public function handle(array $data): User
     {
         $user = DB::transaction(function () use ($data): User {
-            $user = User::create([
+            $user = new User([
                 'first_name' => $data['first_name'],
                 'last_name' => $data['last_name'],
                 'email' => $data['email'],
                 'phone' => $data['phone'] ?? null,
                 'password' => Hash::make(Str::random(64)),
+            ]);
+
+            // Privilege columns are not mass-assignable; this action decides them.
+            $user->forceFill([
                 'role' => Role::Trainer,
                 'status' => UserStatus::Active,
-            ]);
+            ])->save();
 
             TrainerProfile::create([
                 'user_id' => $user->id,

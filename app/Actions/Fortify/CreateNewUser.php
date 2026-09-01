@@ -44,14 +44,20 @@ class CreateNewUser implements CreatesNewUsers
             'password' => $this->passwordRules(),
         ])->validate();
 
-        return User::create([
+        $user = new User([
             'first_name' => $input['first_name'],
             'last_name' => $input['last_name'],
             'phone' => $input['phone'] ?? null,
             'email' => $input['email'],
             'password' => Hash::make($input['password']),
+        ]);
+
+        // Privilege columns are not mass-assignable; this action decides them.
+        $user->forceFill([
             'role' => Role::Player,
             'status' => UserStatus::Active,
-        ]);
+        ])->save();
+
+        return $user;
     }
 }

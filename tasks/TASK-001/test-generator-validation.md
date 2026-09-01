@@ -16,13 +16,14 @@ The map records coverage, not correctness.
 | A wrong password is refused | FR-001 | `tests/Feature/Auth/LoginTest.php::test_a_wrong_password_is_rejected` | covered |
 | A guest cannot reach an authenticated page | FR-001 | `tests/Feature/Auth/LoginTest.php::test_a_guest_is_redirected_to_login` | covered |
 | Last login timestamp is recorded | FR-001 | `tests/Feature/Auth/LoginTest.php::test_login_records_the_last_login_timestamp` | covered |
+| A refused login records no timestamp | FR-001, FR-017 | `tests/Feature/Auth/LoginTest.php::test_a_refused_login_does_not_record_a_login_timestamp` | covered |
 | Password reset flow works end to end | FR-002 | — | uncovered |
 | Email verification gates actions, not login | FR-003, Q-01.05a | `tests/Feature/DashboardRoutingTest.php::test_an_unverified_user_reaches_their_profile_but_not_a_dashboard` | partial — the verification link round trip itself is untested |
 | Each role lands on its own dashboard | FR-004 | `tests/Feature/DashboardRoutingTest.php::test_each_role_is_redirected_to_its_own_dashboard` | covered |
 | A role cannot reach another role's screens | FR-004 | `tests/Feature/DashboardRoutingTest.php::test_a_player_cannot_reach_the_trainer_dashboard`, `::test_a_coach_cannot_reach_the_player_dashboard` | covered |
 | Super Admin reaches every role's screens | FR-004, §6 | `tests/Feature/DashboardRoutingTest.php::test_a_super_admin_may_reach_any_role_dashboard` | covered |
 | Only a Super Admin opens the user directory | FR-005 | `tests/Feature/Admin/UsersDirectoryTest.php::test_a_super_admin_can_open_the_directory`, `::test_a_non_admin_is_forbidden` | covered |
-| Directory search is tool-scoped over name and email | FR-005 | `tests/Feature/Admin/UsersDirectoryTest.php::test_the_search_matches_name_and_email` | covered |
+| Directory search is tool-scoped over name and email | FR-005 | `tests/Feature/Admin/UsersDirectoryTest.php::test_the_search_matches_name_and_email`, `::test_the_search_matches_a_full_name` | covered — the composed name is matched as one string, and wildcards in the term are escaped (`::test_a_wildcard_in_the_search_term_is_escaped`) |
 | Directory filters by role and status | FR-005 | `tests/Feature/Admin/UsersDirectoryTest.php::test_the_role_and_status_filters_narrow_the_list` | covered |
 | Super Admin creates a trainer with a business profile | FR-006 | `tests/Feature/Admin/CreateTrainerAccountTest.php::test_a_super_admin_creates_a_trainer_with_a_profile` | covered |
 | The trainer invitation is sent | FR-006 | `tests/Feature/Admin/CreateTrainerAccountTest.php::test_the_invitation_is_sent_and_carries_no_password` | covered |
@@ -33,9 +34,12 @@ The map records coverage, not correctness.
 | Display name derives from first and last name | FR-016 | `tests/Feature/ProfileTest.php::test_the_display_name_is_derived_from_first_and_last_name` | covered |
 | Profile photo upload | FR-016 | — | uncovered — not implemented; belongs to the file-storage work |
 | A deactivated account cannot log in, with the specified message | FR-017 | `tests/Feature/Auth/LoginTest.php::test_a_deactivated_user_cannot_log_in` | covered |
+| A deactivated account loses an already-open session | FR-017 | `tests/Feature/Auth/AccountStatusTest.php::test_a_session_deactivated_mid_flight_is_terminated`, `::test_the_remember_token_is_cycled_on_lockout`, `::test_a_deactivated_user_cannot_reach_fortify_profile_endpoints` | covered |
 | A deleted account cannot log in | FR-018 | `tests/Feature/Auth/LoginTest.php::test_a_deleted_user_cannot_log_in` | covered |
+| A deleted account loses an already-open session | FR-018 | `tests/Feature/Auth/AccountStatusTest.php::test_a_deleted_account_is_locked_out_mid_session` | covered |
 | Email is unique across all users | BR-001 | `tests/Feature/Admin/CreateTrainerAccountTest.php::test_a_duplicate_email_is_a_field_error_not_a_server_error` | partial — validation is asserted; the database unique index under concurrency is not |
 | Each user has exactly one role | BR-002 | — | uncovered |
+| Role, status and child flag are not mass-assignable | BR-002, NFR-006 | `tests/Feature/Authorization/MassAssignmentTest.php` | covered |
 | Only a Super Admin creates trainer accounts | BR-003 | `tests/Feature/Admin/CreateTrainerAccountTest.php::test_a_non_admin_cannot_open_the_form` | covered |
 | No self-registration surface exists | BR-003, AD-004 | `tests/Feature/Auth/RegistrationDisabledTest.php::test_the_registration_page_does_not_exist`, `::test_registration_cannot_be_posted_to` | covered |
 | Super Admin cannot impersonate another Super Admin | BR-016 | `tests/Feature/Authorization/AuthorizationTest.php::test_a_super_admin_cannot_impersonate_another_super_admin` | covered — policy level; the route arrives in Slice D |

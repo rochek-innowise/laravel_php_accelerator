@@ -17,12 +17,12 @@ use Illuminate\Database\Eloquent\Relations\HasOne;
 use Illuminate\Foundation\Auth\User as Authenticatable;
 use Illuminate\Notifications\Notifiable;
 
+// `role`, `status` and `is_child_account` are deliberately absent: they decide privilege, and a
+// future `update($request->validated())` anywhere would otherwise be a role-escalation hole. The
+// two actions that own them use forceFill; factories bypass the allow-list already.
 #[Fillable([
     'email',
     'password',
-    'role',
-    'status',
-    'is_child_account',
     'first_name',
     'last_name',
     'phone',
