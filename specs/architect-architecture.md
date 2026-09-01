@@ -9,9 +9,9 @@ Sports-training platform: a Laravel monolith serving four roles (Super Admin, Tr
 | Runtime | PHP 8.4, Laravel 13, DDEV (nginx-fpm) |
 | Database | MariaDB 11.8 |
 | Frontend | Blade + Livewire + Alpine, Vite, Tailwind, Flux UI |
-| Auth | Official Laravel Livewire starter kit on **Laravel Fortify** (`laravel/breeze` is legacy — not used) |
+| Auth | **Laravel Fortify** + Livewire, installed directly (`composer require laravel/fortify livewire/livewire` + `fortify:install`). Laravel 13's starter kits are project templates for `laravel new`, not installable into this existing repository; `laravel/breeze` is legacy |
 | Queue / schedule | `database` driver for MVP; a worker and the scheduler are **required runtime processes** (see AD-008) |
-| Tests | PHPUnit 12 |
+| Tests | PHPUnit 12, run against **MariaDB**, not SQLite — the schema relies on MariaDB-only DDL (see AD-013) |
 
 ## Layering And Dependency Direction
 
@@ -132,6 +132,14 @@ Approval requests need an in-app indicator (FR-010). Use the `database` notifica
 ### AD-012 — Directory pagination is sized for the stated scale
 
 NFR-002 asks for a 10,000-user list under 3 s. Server-side pagination with an index on `(role, status)`; avoid an unbounded `COUNT(*)` on every keystroke — debounce the search input and prefer `simplePaginate()` unless exact page counts are required. Search is tool-scoped by requirement, so it never fans out across unrelated tables.
+
+---
+
+### AD-013 — The test suite runs on MariaDB
+
+`phpunit.xml` ships pointing at `sqlite::memory:`, which cannot execute this schema: BR-006 is enforced by a MariaDB generated column using `IF()`, and the two engines diverge exactly on that feature — SQLite has partial indexes, MariaDB does not, which is the whole reason the generated column exists.
+
+Ruling: the suite runs against a MariaDB test database in DDEV. An in-memory SQLite run would leave the database-level invariant the architecture depends on completely unexercised while appearing green. Speed is not worth a test suite that cannot fail on the thing most likely to break.
 
 ---
 

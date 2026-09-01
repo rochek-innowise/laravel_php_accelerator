@@ -16,7 +16,7 @@ A multi-tenant Laravel platform where independent trainers run their training or
 - **Tenancy**: single-database, `trainer_profile_id` + a **fail-closed** global scope resolved from session. No tenancy package — one user legitimately spans tenants and there are no subdomains.
 - **Identity**: `User` (credential) and `PlayerProfile` (trainable person) are separate tables. "Parent" is emergent from owning several profiles, not a role.
 - **Authorization**: `Role` enum + Policies/Gates. No permissions package — four compile-time roles. Child constraints live in one `ChildAbilities::DENIED` array.
-- **Auth scaffolding**: official Livewire starter kit on Fortify. Fortify registration is **disabled**; the only registration surface is `/join/{code}`.
+- **Auth scaffolding**: Fortify + Livewire installed directly (starter kits are `laravel new` templates, not installable here). Fortify registration is **disabled**; the only registration surface is `/join/{code}`.
 - **Epic boundaries**: exactly one interface, `ApprovedPurchaseExecutor`, replaced by Epic-05. No other stubs.
 - **Admin UI**: hand-rolled Livewire for Epic-01; Filament reconsidered at Epic-07.
 - **Real-time**: none. Database notifications + `wire:poll`; Reverb reconsidered at Epic-02.
@@ -24,7 +24,7 @@ A multi-tenant Laravel platform where independent trainers run their training or
 
 ## Tech Stack
 
-PHP 8.4 · Laravel 13 · MariaDB 11.8 · DDEV (nginx-fpm) · Blade + Livewire + Alpine · Vite + Tailwind + Flux UI · PHPUnit 12 · `intervention/image` for uploads
+PHP 8.4 · Laravel 13 · MariaDB 11.8 · DDEV (nginx-fpm) · Blade + Livewire + Alpine · Vite + Tailwind + Flux UI (free tier) · PHPUnit 12 against MariaDB · `intervention/image` for uploads
 
 ## Roadmap Context
 
