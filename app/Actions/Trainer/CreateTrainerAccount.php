@@ -12,7 +12,6 @@ use App\Notifications\TrainerInvitation;
 use App\Services\AuditLogger;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Hash;
-use Illuminate\Support\Facades\Password;
 use Illuminate\Support\Str;
 
 /**
@@ -59,7 +58,7 @@ final class CreateTrainerAccount
 
         // After commit (AD-007): a rolled-back transaction must never leave a sent invitation.
         DB::afterCommit(function () use ($user): void {
-            $user->notify(new TrainerInvitation(Password::broker()->createToken($user)));
+            $user->notify(new TrainerInvitation);
         });
 
         return $user;

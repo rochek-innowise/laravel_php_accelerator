@@ -76,4 +76,20 @@ final class AccountStatusTest extends TestCase
     {
         $this->get('/login')->assertOk();
     }
+
+    /**
+     * Q-01.07: a 7-day rolling session. The effective lifetime comes from the environment, which a
+     * test cannot speak for, so this pins the default a fresh deployment gets — the part that
+     * lives in the repository. The lockout guard above is what makes a lifetime this long safe;
+     * narrowing one without the other is the regression to catch.
+     */
+    public function test_the_repository_defaults_to_a_seven_day_rolling_session(): void
+    {
+        $this->assertStringContainsString(
+            "env('SESSION_LIFETIME', 10080)",
+            (string) file_get_contents(config_path('session.php')),
+        );
+
+        $this->assertFalse(config('session.expire_on_close'));
+    }
 }

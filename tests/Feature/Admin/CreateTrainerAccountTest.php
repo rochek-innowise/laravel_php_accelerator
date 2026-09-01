@@ -12,6 +12,7 @@ use App\Notifications\TrainerInvitation;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Notification;
 use Livewire\Livewire;
+use ReflectionClass;
 use Tests\TestCase;
 
 /** FR-006 / BR-003: only a Super Admin creates trainers, and no password is ever mailed. */
@@ -67,6 +68,30 @@ final class CreateTrainerAccountTest extends TestCase
 
         Notification::assertSentTo($trainer, TrainerInvitation::class);
         $this->assertFalse(Hash::check('password', $trainer->password));
+    }
+
+    /**
+     * A queued notification is serialized into the jobs table, so the reset token must be minted
+     * in the worker when the mail is rendered — never carried in the payload as plaintext.
+     */
+    public function test_the_invitation_mints_its_token_when_the_mail_is_rendered(): void
+    {
+        Notification::fake();
+
+        Livewire::actingAs(User::factory()->superAdmin()->create())
+            ->test(CreateTrainerForm::class)
+            ->set($this->validPayload())
+            ->call('save');
+
+        $trainer = User::where('email', 'dana@example.test')->firstOrFail();
+
+        $this->assertNull((new ReflectionClass(TrainerInvitation::class))->getConstructor());
+        $this->assertDatabaseCount('password_reset_tokens', 0);
+
+        $mail = (new TrainerInvitation)->toMail($trainer);
+
+        $this->assertDatabaseCount('password_reset_tokens', 1);
+        $this->assertStringContainsString('/reset-password/', (string) $mail->actionUrl);
     }
 
     public function test_the_creation_is_audited_with_the_acting_admin(): void

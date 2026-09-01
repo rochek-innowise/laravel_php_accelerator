@@ -32,7 +32,9 @@ return [
     |
     */
 
-    'lifetime' => (int) env('SESSION_LIFETIME', 120),
+    // Q-01.07: a 7-day rolling session, defaulted here rather than only in the environment so
+    // a fresh deployment cannot silently fall back to Laravel's 120 minutes.
+    'lifetime' => (int) env('SESSION_LIFETIME', 10080),
 
     'expire_on_close' => env('SESSION_EXPIRE_ON_CLOSE', false),
 
