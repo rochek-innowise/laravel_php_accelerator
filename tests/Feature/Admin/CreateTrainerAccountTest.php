@@ -71,10 +71,12 @@ final class CreateTrainerAccountTest extends TestCase
     }
 
     /**
-     * A queued notification is serialized into the jobs table, so the reset token must be minted
-     * in the worker when the mail is rendered — never carried in the payload as plaintext.
+     * The invitation carries no token at all: nothing sensitive reaches the serialized queue
+     * payload, and the mail cannot go stale — a 60-minute token-bearing link would have been dead
+     * for anyone opening the invitation the next morning. The trainer mints their own token from
+     * the password-request form when they are ready.
      */
-    public function test_the_invitation_mints_its_token_when_the_mail_is_rendered(): void
+    public function test_the_invitation_carries_no_token_and_cannot_expire(): void
     {
         Notification::fake();
 
@@ -86,12 +88,11 @@ final class CreateTrainerAccountTest extends TestCase
         $trainer = User::where('email', 'dana@example.test')->firstOrFail();
 
         $this->assertNull((new ReflectionClass(TrainerInvitation::class))->getConstructor());
-        $this->assertDatabaseCount('password_reset_tokens', 0);
 
         $mail = (new TrainerInvitation)->toMail($trainer);
 
-        $this->assertDatabaseCount('password_reset_tokens', 1);
-        $this->assertStringContainsString('/reset-password/', (string) $mail->actionUrl);
+        $this->assertSame(route('password.request'), $mail->actionUrl);
+        $this->assertDatabaseCount('password_reset_tokens', 0);
     }
 
     public function test_the_creation_is_audited_with_the_acting_admin(): void

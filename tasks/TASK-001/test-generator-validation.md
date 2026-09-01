@@ -27,6 +27,7 @@ The map records coverage, not correctness.
 | Directory filters by role and status | FR-005 | `tests/Feature/Admin/UsersDirectoryTest.php::test_the_role_and_status_filters_narrow_the_list` | covered |
 | Super Admin creates a trainer with a business profile | FR-006 | `tests/Feature/Admin/CreateTrainerAccountTest.php::test_a_super_admin_creates_a_trainer_with_a_profile` | covered |
 | The trainer invitation is sent | FR-006 | `tests/Feature/Admin/CreateTrainerAccountTest.php::test_the_invitation_is_sent_and_carries_no_password` | covered |
+| The invitation carries neither a password nor a token | FR-006, NFR-006 | `tests/Feature/Admin/CreateTrainerAccountTest.php::test_the_invitation_carries_no_token_and_cannot_expire` | covered — the mail points at the password-request form, so nothing sensitive reaches the queue payload and the invitation cannot go stale |
 | A duplicate email is a field error, never a 500 | FR-006 | `tests/Feature/Admin/CreateTrainerAccountTest.php::test_a_duplicate_email_is_a_field_error_not_a_server_error` | covered |
 | Required trainer fields are enforced | FR-006 | `tests/Feature/Admin/CreateTrainerAccountTest.php::test_required_fields_are_enforced` | covered |
 | A user edits their own profile | FR-016 | `tests/Feature/ProfileTest.php::test_a_user_updates_their_own_profile` | covered |
@@ -49,11 +50,14 @@ The map records coverage, not correctness.
 | The deny list matches the eight actions FR-011 forbids | FR-011 | `tests/Unit/ChildAbilitiesTest.php::test_the_deny_list_covers_every_forbidden_action` | covered |
 | A child cannot create player profiles | FR-011 | `tests/Feature/Authorization/AuthorizationTest.php::test_a_child_account_cannot_create_player_profiles` | covered |
 | Only the owning parent manages a child's trainer associations | FR-009, FR-011 | `tests/Feature/Authorization/AuthorizationTest.php::test_a_parent_may_manage_only_their_own_childrens_associations` | covered — policy level; the screen arrives in Slice C |
-| `is_child_account` always agrees with the backing profile | Design decision 2 | — | uncovered — the invariant test the design calls for is not written |
+| `is_child_account` always agrees with the backing profile | Design decision 2 | `tests/Feature/Authorization/ChildAccountInvariantTest.php` | covered — asserted over seeded data, the only place both sides are written together |
 | Passwords are hashed and never mailed | NFR-006 | `tests/Feature/Admin/CreateTrainerAccountTest.php::test_the_invitation_is_sent_and_carries_no_password` | partial — asserts the created password is not a known value; hashing itself is framework behaviour |
+| TrainerProfilePolicy: owner writes, other organisations refused | FR-007, NFR-010 | `tests/Feature/Authorization/TrainerProfilePolicyTest.php` | covered |
+| CoachProfilePolicy: the employing trainer only | BR-006, NFR-010 | `tests/Feature/Authorization/CoachProfilePolicyTest.php` | covered — pins the organisation boundary Slice B replaces with TrainerContext |
+| A 7-day rolling session is the repository default | Q-01.07 | `tests/Feature/Auth/AccountStatusTest.php::test_the_repository_defaults_to_a_seven_day_rolling_session` | partial — the committed default is asserted; the effective value comes from the environment |
 | Login attempts are rate limited | NFR-007 | `tests/Feature/Auth/LoginTest.php::test_repeated_attempts_are_throttled` | covered |
 | State-changing requests are CSRF protected | NFR-008 | — | uncovered |
-| Token TTLs: verification 24 h, reset 1 h | NFR-009 | — | uncovered |
+| Token TTLs: verification 24 h, reset 1 h | NFR-009 | — | uncovered — the trainer invitation no longer depends on a TTL; the reset and verification link TTLs themselves are still untested |
 | The directory stays paginated at scale | NFR-002 | `tests/Feature/Admin/UsersDirectoryTest.php::test_the_listing_is_paginated` | partial — page size is asserted; the 10k-row timing target is not, and a timing assertion would be flaky |
 | Sensitive operations are audited with both identities | NFR-011 | `tests/Feature/Admin/CreateTrainerAccountTest.php::test_the_creation_is_audited_with_the_acting_admin` | partial — trainer creation only; impersonation and deletion are Slice D |
 | WCAG 2.1 AA | NFR-012 | — | uncovered — needs the real markup, which is the frontend work |
