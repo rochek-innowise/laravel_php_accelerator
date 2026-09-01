@@ -9,7 +9,7 @@ Sports-training platform: a Laravel monolith serving four roles (Super Admin, Tr
 | Runtime | PHP 8.4, Laravel 13, DDEV (nginx-fpm) |
 | Database | MariaDB 11.8 |
 | Frontend | Blade + Livewire + Alpine, Vite, Tailwind, Flux UI |
-| Auth | **Laravel Fortify** + Livewire, installed directly (`composer require laravel/fortify livewire/livewire` + `fortify:install`). Laravel 13's starter kits are project templates for `laravel new`, not installable into this existing repository; `laravel/breeze` is legacy |
+| Auth | **Laravel Fortify 1.x** + Livewire 4, installed directly (`composer require laravel/fortify livewire/livewire` + `fortify:install`). Laravel 13's starter kits are project templates for `laravel new`, not installable into this existing repository; `laravel/breeze` is legacy |
 | Queue / schedule | `database` driver for MVP; a worker and the scheduler are **required runtime processes** (see AD-008) |
 | Tests | PHPUnit 12, run against **MariaDB**, not SQLite — the schema relies on MariaDB-only DDL (see AD-013) |
 
@@ -38,7 +38,8 @@ app/
   Livewire/{Admin,Trainer,Family,Availability}/
   Policies/
   Services/           TrainerContext, AvailabilityResolver, CoachConflictChecker, AuditLogger
-  Support/Tenancy/    BelongsToTenant, TenantScope, ChildAbilities
+  Support/Tenancy/         BelongsToTenant, TenantScope
+  Support/Authorization/   ChildAbilities
 ```
 
 ## Architecture Decisions
@@ -132,6 +133,14 @@ Approval requests need an in-app indicator (FR-010). Use the `database` notifica
 ### AD-012 — Directory pagination is sized for the stated scale
 
 NFR-002 asks for a 10,000-user list under 3 s. Server-side pagination with an index on `(role, status)`; avoid an unbounded `COUNT(*)` on every keystroke — debounce the search input and prefer `simplePaginate()` unless exact page counts are required. Search is tool-scoped by requirement, so it never fans out across unrelated tables.
+
+---
+
+### AD-014 — Livewire components are class-based
+
+Livewire 4 generates **single-file components** by default, into `resources/views/components/…` with a `⚡` filename prefix. This project uses `php artisan make:livewire <Name> --class`, keeping components in `app/Livewire/` as the directory plan above states.
+
+Reason: components here are the HTTP entry points of the layering — they authorize, then delegate to an Action. That logic belongs in a class with a policy check and a component test, not inline in a Blade file. Recorded because the default is the other way, and an unflagged `make:livewire` will quietly produce the wrong shape.
 
 ---
 
