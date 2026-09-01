@@ -11,8 +11,9 @@ use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 
+// `user_id` is not mass-assignable: it is the tenant root, so create through the relationship
+// ($user->trainerProfile()->create(...)) and let Eloquent set the owner.
 #[Fillable([
-    'user_id',
     'business_name',
     'slug',
     'address',

@@ -43,8 +43,7 @@ final class CreateTrainerAccount
                 'status' => UserStatus::Active,
             ])->save();
 
-            TrainerProfile::create([
-                'user_id' => $user->id,
+            $user->trainerProfile()->create([
                 'business_name' => $data['business_name'],
                 'slug' => $this->uniqueSlug($data['business_name']),
             ]);

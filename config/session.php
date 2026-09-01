@@ -171,7 +171,9 @@ return [
     |
     */
 
-    'secure' => env('SESSION_SECURE_COOKIE'),
+    // Secure by default everywhere but local: the session cookie now lives 7 days (Q-01.07), so
+    // letting it travel over plain HTTP is a longer exposure than the framework default assumes.
+    'secure' => env('SESSION_SECURE_COOKIE', env('APP_ENV') !== 'local'),
 
     /*
     |--------------------------------------------------------------------------

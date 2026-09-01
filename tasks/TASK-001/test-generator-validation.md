@@ -56,6 +56,8 @@ The map records coverage, not correctness.
 | CoachProfilePolicy: the employing trainer only | BR-006, NFR-010 | `tests/Feature/Authorization/CoachProfilePolicyTest.php` | covered — pins the organisation boundary Slice B replaces with TrainerContext |
 | A 7-day rolling session is the repository default | Q-01.07 | `tests/Feature/Auth/AccountStatusTest.php::test_the_repository_defaults_to_a_seven_day_rolling_session` | partial — the committed default is asserted; the effective value comes from the environment |
 | Login attempts are rate limited | NFR-007 | `tests/Feature/Auth/LoginTest.php::test_repeated_attempts_are_throttled` | covered |
+| Password reset requests are rate limited | NFR-007 | `tests/Feature/Auth/PasswordResetThrottleTest.php` | covered — Fortify ships a limiter for login only; reset had none |
+| Owner and tenancy columns are not mass-assignable | NFR-010, NFR-011 | `tests/Feature/Authorization/MassAssignmentTest.php::test_profile_owner_columns_cannot_be_mass_assigned`, `::test_an_audit_row_cannot_be_mass_assigned_at_all` | covered |
 | State-changing requests are CSRF protected | NFR-008 | — | uncovered |
 | Token TTLs: verification 24 h, reset 1 h | NFR-009 | — | uncovered — the trainer invitation no longer depends on a TTL; the reset and verification link TTLs themselves are still untested |
 | The directory stays paginated at scale | NFR-002 | `tests/Feature/Admin/UsersDirectoryTest.php::test_the_listing_is_paginated` | partial — page size is asserted; the 10k-row timing target is not, and a timing assertion would be flaky |

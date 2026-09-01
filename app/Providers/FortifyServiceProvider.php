@@ -46,11 +46,26 @@ class FortifyServiceProvider extends ServiceProvider
         $this->registerViews();
         $this->registerAuthenticationPipeline();
 
-        RateLimiter::for('login', function (Request $request) {
+        $this->registerRateLimiters();
+    }
+
+    /**
+     * NFR-007. `login` is Fortify's own per-credential limiter; `fortify` covers every other
+     * unauthenticated write it registers — password reset above all, which has no limiter of its
+     * own and is the trainer onboarding path, so an unlimited POST there is a mail-bombing tool.
+     * Read-only view routes are exempt so a reloaded sign-in page cannot lock anyone out.
+     */
+    protected function registerRateLimiters(): void
+    {
+        RateLimiter::for('login', function (Request $request): Limit {
             $throttleKey = Str::transliterate(Str::lower($request->input(Fortify::username())).'|'.$request->ip());
 
             return Limit::perMinute(5)->by($throttleKey);
         });
+
+        RateLimiter::for('fortify', fn (Request $request): Limit => $request->isMethodSafe()
+            ? Limit::none()
+            : Limit::perMinute(10)->by((string) $request->ip()));
     }
 
     protected function registerViews(): void

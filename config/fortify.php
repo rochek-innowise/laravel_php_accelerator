@@ -101,7 +101,9 @@ return [
     |
     */
 
-    'middleware' => ['web'],
+    // `throttle:fortify` is defined in FortifyServiceProvider: it limits unauthenticated writes
+    // (password reset above all) and exempts read-only view routes.
+    'middleware' => ['web', 'throttle:fortify'],
 
     /*
     |--------------------------------------------------------------------------

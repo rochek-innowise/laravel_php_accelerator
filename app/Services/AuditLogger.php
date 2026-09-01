@@ -20,7 +20,9 @@ final class AuditLogger
     {
         $request = request();
 
-        $log = new AuditLog([
+        // forceFill, because AuditLog guards every attribute — the trail must not be forgeable
+        // through a stray mass assignment somewhere else in the application.
+        $log = (new AuditLog)->forceFill([
             'actor_user_id' => auth()->id(),
             'on_behalf_of_user_id' => $this->impersonatorId(),
             'action' => $action,

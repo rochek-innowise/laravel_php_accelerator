@@ -6,7 +6,12 @@ namespace Tests\Feature\Authorization;
 
 use App\Enums\Role;
 use App\Enums\UserStatus;
+use App\Models\AuditLog;
+use App\Models\CoachProfile;
+use App\Models\PlayerProfile;
+use App\Models\TrainerProfile;
 use App\Models\User;
+use Illuminate\Database\Eloquent\MassAssignmentException;
 use Tests\TestCase;
 
 /** The privilege columns decide who you are, so they must not be reachable by mass assignment. */
@@ -42,5 +47,58 @@ final class MassAssignmentTest extends TestCase
         $this->assertSame(UserStatus::Active, $fresh->status);
         $this->assertFalse($fresh->is_child_account);
         $this->assertSame('Legitimate', $fresh->first_name);
+    }
+
+    /**
+     * The owner columns are the tenancy boundary: a request-supplied owner_user_id would let one
+     * account claim another family's child, and a request-supplied trainer_profile_id would place
+     * a coach inside someone else's organisation — the leakage NFR-010 puts at 0%.
+     */
+    public function test_profile_owner_columns_cannot_be_mass_assigned(): void
+    {
+        $victim = User::factory()->create();
+
+        $player = new PlayerProfile([
+            'name' => 'Claimed Child',
+            'owner_user_id' => $victim->id,
+            'user_id' => $victim->id,
+        ]);
+
+        $this->assertSame('Claimed Child', $player->name);
+        $this->assertNull($player->owner_user_id);
+        $this->assertNull($player->user_id);
+
+        $coach = new CoachProfile([
+            'status' => 'active',
+            'user_id' => $victim->id,
+            'trainer_profile_id' => 99,
+        ]);
+
+        $this->assertNull($coach->user_id);
+        $this->assertNull($coach->trainer_profile_id);
+
+        $trainer = new TrainerProfile([
+            'business_name' => 'Claimed Academy',
+            'user_id' => $victim->id,
+        ]);
+
+        $this->assertNull($trainer->user_id);
+    }
+
+    /** An audit row guards every attribute, so a stray mass assignment fails loudly. */
+    public function test_an_audit_row_cannot_be_mass_assigned_at_all(): void
+    {
+        $this->expectException(MassAssignmentException::class);
+
+        new AuditLog(['action' => 'forged', 'actor_user_id' => 1]);
+    }
+
+    /** Factories and seeders run unguarded, so the change above must not break them. */
+    public function test_factories_still_populate_owner_columns(): void
+    {
+        $profile = CoachProfile::factory()->create();
+
+        $this->assertNotNull($profile->user_id);
+        $this->assertNotNull($profile->trainer_profile_id);
     }
 }
