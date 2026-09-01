@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Policies;
 
+use App\Enums\Role;
 use App\Models\CoachProfile;
 use App\Models\User;
 
@@ -12,25 +13,32 @@ final class CoachProfilePolicy
 {
     public function viewAny(User $user): bool
     {
-        // TODO(coder): trainer of the current tenant, or Super Admin.
-        throw new \RuntimeException('Not implemented');
+        // TODO(slice-b): scope the listing to the current tenant once TrainerContext exists.
+        return $user->role === Role::Trainer;
     }
 
     public function view(User $user, CoachProfile $coachProfile): bool
     {
-        // TODO(coder): the coach themselves, their trainer, or Super Admin.
-        throw new \RuntimeException('Not implemented');
+        return $user->id === $coachProfile->user_id || $this->employs($user, $coachProfile);
     }
 
     public function invite(User $user): bool
     {
-        // TODO(coder): trainer only (FR-013). Slice B.
-        throw new \RuntimeException('Not implemented');
+        return $user->role === Role::Trainer;
     }
 
     public function update(User $user, CoachProfile $coachProfile): bool
     {
-        // TODO(coder): the coach edits their own profile; the trainer edits the association.
-        throw new \RuntimeException('Not implemented');
+        return $user->id === $coachProfile->user_id || $this->employs($user, $coachProfile);
+    }
+
+    /** The trainer this coach works for — BR-006 guarantees there is at most one active. */
+    protected function employs(User $user, CoachProfile $coachProfile): bool
+    {
+        if ($user->role !== Role::Trainer) {
+            return false;
+        }
+
+        return $user->trainerProfile?->id === $coachProfile->trainer_profile_id;
     }
 }

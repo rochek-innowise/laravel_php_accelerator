@@ -13,10 +13,38 @@ use Illuminate\Database\Eloquent\Model;
  */
 final class AuditLogger
 {
+    /**
+     * @param  array<string, mixed>  $metadata
+     */
     public function log(string $action, ?Model $subject = null, array $metadata = []): AuditLog
     {
-        // TODO(coder): resolve actor from auth(), on_behalf_of from session('impersonator_id'),
-        // capture the request IP, and persist.
-        throw new \RuntimeException('Not implemented');
+        $request = request();
+
+        $log = new AuditLog([
+            'actor_user_id' => auth()->id(),
+            'on_behalf_of_user_id' => $this->impersonatorId(),
+            'action' => $action,
+            'ip_address' => $request->ip(),
+            'metadata' => empty($metadata) ? null : $metadata,
+        ]);
+
+        if (! empty($subject)) {
+            $log->subject()->associate($subject);
+        }
+
+        $log->save();
+
+        return $log;
+    }
+
+    protected function impersonatorId(): ?int
+    {
+        $request = request();
+
+        if (! $request->hasSession()) {
+            return null;
+        }
+
+        return $request->session()->get('impersonator_id');
     }
 }

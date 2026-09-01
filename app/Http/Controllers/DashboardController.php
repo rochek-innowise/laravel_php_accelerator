@@ -12,7 +12,6 @@ final class DashboardController extends Controller
 {
     public function __invoke(Request $request): RedirectResponse
     {
-        // TODO(coder): redirect via $request->user()->role->dashboardRoute().
-        throw new \RuntimeException('Not implemented');
+        return redirect()->route($request->user()->role->dashboardRoute());
     }
 }

@@ -4,54 +4,53 @@ declare(strict_types=1);
 
 namespace App\Policies;
 
+use App\Enums\UserStatus;
 use App\Models\User;
 
 /**
- * Every method answers in this order: tenant membership -> role -> child deny list (AD-005).
- * The tenancy branch is a deliberate no-op until Slice B introduces TrainerContext, so Slice B
- * fills it in rather than inserting it — the retrofit that would otherwise open an NFR-010 gap.
+ * Order: tenant membership -> role -> child deny list (AD-005). Tenancy is not yet a factor for
+ * identity records; Slice B adds it where a trainer reaches a user through an association.
+ * The child deny list is enforced globally by a Gate::before hook, so it is not repeated here.
+ * Super Admin short-circuits in Gate::before; the explicit checks below keep each method honest
+ * on its own.
  */
 final class UserPolicy
 {
     public function viewAny(User $user): bool
     {
-        // TODO(coder): Super Admin only — the global directory (FR-005).
-        throw new \RuntimeException('Not implemented');
+        return $user->isSuperAdmin();
     }
 
     public function view(User $user, User $subject): bool
     {
-        // TODO(coder): self, or Super Admin.
-        throw new \RuntimeException('Not implemented');
+        return $user->is($subject) || $user->isSuperAdmin();
     }
 
     public function create(User $user): bool
     {
-        // TODO(coder): Super Admin only — BR-003 forbids trainer self-registration.
-        throw new \RuntimeException('Not implemented');
+        return $user->isSuperAdmin();
     }
 
     public function update(User $user, User $subject): bool
     {
-        // TODO(coder): self (FR-016), or Super Admin.
-        throw new \RuntimeException('Not implemented');
+        return $user->is($subject) || $user->isSuperAdmin();
     }
 
     public function deactivate(User $user, User $subject): bool
     {
-        // TODO(coder): Super Admin only (FR-017). Slice D.
-        throw new \RuntimeException('Not implemented');
+        return $user->isSuperAdmin() && ! $user->is($subject);
     }
 
     public function delete(User $user, User $subject): bool
     {
-        // TODO(coder): Super Admin only (FR-018). Slice D.
-        throw new \RuntimeException('Not implemented');
+        return $user->isSuperAdmin() && ! $user->is($subject);
     }
 
     public function impersonate(User $user, User $subject): bool
     {
-        // TODO(coder): Super Admin, target not Super Admin (BR-016), target active. Slice D.
-        throw new \RuntimeException('Not implemented');
+        // BR-016: never another Super Admin, and never a non-active account.
+        return $user->isSuperAdmin()
+            && ! $subject->isSuperAdmin()
+            && $subject->status === UserStatus::Active;
     }
 }

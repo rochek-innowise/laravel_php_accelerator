@@ -12,19 +12,22 @@ final class TrainerProfilePolicy
 {
     public function view(User $user, TrainerProfile $trainerProfile): bool
     {
-        // TODO(coder): owner, a member of this tenant, or Super Admin.
-        throw new \RuntimeException('Not implemented');
+        // TODO(slice-b): also allow any member of this tenant, resolved through TrainerContext.
+        return $this->owns($user, $trainerProfile) || $user->isSuperAdmin();
     }
 
     public function update(User $user, TrainerProfile $trainerProfile): bool
     {
-        // TODO(coder): owning trainer only.
-        throw new \RuntimeException('Not implemented');
+        return $this->owns($user, $trainerProfile);
     }
 
     public function updateBranding(User $user, TrainerProfile $trainerProfile): bool
     {
-        // TODO(coder): owning trainer only (FR-019). Slice D.
-        throw new \RuntimeException('Not implemented');
+        return $this->owns($user, $trainerProfile);
+    }
+
+    protected function owns(User $user, TrainerProfile $trainerProfile): bool
+    {
+        return $user->id === $trainerProfile->user_id;
     }
 }

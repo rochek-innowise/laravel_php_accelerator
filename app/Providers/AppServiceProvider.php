@@ -4,10 +4,21 @@ declare(strict_types=1);
 
 namespace App\Providers;
 
+use App\Models\User;
+use App\Support\Authorization\ChildAbilities;
+use Illuminate\Auth\Events\Login;
+use Illuminate\Support\Facades\Event;
+use Illuminate\Support\Facades\Gate;
 use Illuminate\Support\ServiceProvider;
 
 class AppServiceProvider extends ServiceProvider
 {
+    /**
+     * Abilities whose policy already encodes its own Super Admin rule. The bypass must fall
+     * through to them, or BR-016 (no Super-Admin-on-Super-Admin impersonation) is unenforceable.
+     */
+    protected const NOT_BYPASSABLE = ['impersonate'];
+
     /**
      * Register any application services.
      */
@@ -21,10 +32,50 @@ class AppServiceProvider extends ServiceProvider
      */
     public function boot(): void
     {
-        // TODO(coder): Gate::before granting Super Admin ONLY when session('impersonator_id') is
-        // absent — an admin id leaking into the gate during impersonation is a privilege hole.
+        $this->registerGates();
 
-        // TODO(coder): a second Gate::before returning false for ChildAbilities::denies($ability)
-        // when the authenticated user is a child account. Fail-closed, short-circuiting.
+        Event::listen(Login::class, function (Login $event): void {
+            $event->user->forceFill(['last_login_at' => now()])->saveQuietly();
+        });
+    }
+
+    /**
+     * Registration order matters: the child deny list runs first so a later grant can never
+     * override it. Both callbacks return null to fall through to the policies.
+     */
+    protected function registerGates(): void
+    {
+        Gate::before(function (User $user, string $ability): ?bool {
+            if ($user->is_child_account && ChildAbilities::denies($ability)) {
+                return false;
+            }
+
+            return null;
+        });
+
+        // Super Admin bypasses policies, but never while impersonating — the acting identity is
+        // the target, and an admin id leaking into the gate would be a privilege hole (AD-005).
+        Gate::before(function (User $user, string $ability): ?bool {
+            if (in_array($ability, self::NOT_BYPASSABLE, true)) {
+                return null;
+            }
+
+            if ($user->isSuperAdmin() && ! $this->isImpersonating()) {
+                return true;
+            }
+
+            return null;
+        });
+    }
+
+    protected function isImpersonating(): bool
+    {
+        $request = request();
+
+        if (! $request->hasSession()) {
+            return false;
+        }
+
+        return $request->session()->has('impersonator_id');
     }
 }

@@ -1,7 +1,11 @@
 <?php
 
+declare(strict_types=1);
+
 namespace App\Actions\Fortify;
 
+use App\Enums\Role;
+use App\Enums\UserStatus;
 use App\Models\User;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Validator;
@@ -9,6 +13,10 @@ use Illuminate\Validation\Rule;
 use Illuminate\Validation\ValidationException;
 use Laravel\Fortify\Contracts\CreatesNewUsers;
 
+/**
+ * Fortify's registration route is disabled (AD-004). This action stays registered because
+ * Slice B's /join/{code} component calls it, so password rules remain first-party.
+ */
 class CreateNewUser implements CreatesNewUsers
 {
     use PasswordValidationRules;
@@ -23,7 +31,9 @@ class CreateNewUser implements CreatesNewUsers
     public function create(array $input): User
     {
         Validator::make($input, [
-            'name' => ['required', 'string', 'max:255'],
+            'first_name' => ['required', 'string', 'max:255'],
+            'last_name' => ['required', 'string', 'max:255'],
+            'phone' => ['nullable', 'string', 'max:50'],
             'email' => [
                 'required',
                 'string',
@@ -35,9 +45,13 @@ class CreateNewUser implements CreatesNewUsers
         ])->validate();
 
         return User::create([
-            'name' => $input['name'],
+            'first_name' => $input['first_name'],
+            'last_name' => $input['last_name'],
+            'phone' => $input['phone'] ?? null,
             'email' => $input['email'],
             'password' => Hash::make($input['password']),
+            'role' => Role::Player,
+            'status' => UserStatus::Active,
         ]);
     }
 }

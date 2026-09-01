@@ -10,6 +10,7 @@ use Database\Factories\UserFactory;
 use Illuminate\Contracts\Auth\MustVerifyEmail;
 use Illuminate\Database\Eloquent\Attributes\Fillable;
 use Illuminate\Database\Eloquent\Attributes\Hidden;
+use Illuminate\Database\Eloquent\Casts\Attribute;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\Relations\HasOne;
@@ -17,7 +18,6 @@ use Illuminate\Foundation\Auth\User as Authenticatable;
 use Illuminate\Notifications\Notifiable;
 
 #[Fillable([
-    'name',
     'email',
     'password',
     'role',
@@ -49,6 +49,14 @@ class User extends Authenticatable implements MustVerifyEmail
             'status' => UserStatus::class,
             'is_child_account' => 'boolean',
         ];
+    }
+
+    /** Display name; the `name` column was dropped in favour of first/last (FR-016). */
+    protected function name(): Attribute
+    {
+        return Attribute::get(
+            fn (): string => trim(($this->first_name ?? '').' '.($this->last_name ?? ''))
+        );
     }
 
     /** @return HasOne<TrainerProfile, $this> */

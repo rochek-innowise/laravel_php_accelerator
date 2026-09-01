@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Policies;
 
+use App\Enums\Role;
 use App\Models\PlayerProfile;
 use App\Models\User;
 
@@ -12,26 +13,32 @@ final class PlayerProfilePolicy
 {
     public function view(User $user, PlayerProfile $playerProfile): bool
     {
-        // TODO(coder): the owner, the profile's own login, a trainer reaching it through an
-        // active trainer_players row in the current tenant, or Super Admin.
-        throw new \RuntimeException('Not implemented');
+        // TODO(slice-b): also allow a trainer reaching this person through an active
+        // trainer_players row in the current tenant.
+        return $this->ownsOrIs($user, $playerProfile);
     }
 
     public function create(User $user): bool
     {
-        // TODO(coder): a Player/Parent account creating a child (FR-008). Slice C.
-        throw new \RuntimeException('Not implemented');
+        // A child cannot create profiles; the global deny list covers the association abilities.
+        return $user->role === Role::Player && ! $user->is_child_account;
     }
 
     public function update(User $user, PlayerProfile $playerProfile): bool
     {
-        // TODO(coder): the owner; a child may edit only the basic fields of FR-011.
-        throw new \RuntimeException('Not implemented');
+        return $this->ownsOrIs($user, $playerProfile);
     }
 
     public function manageTrainerAssociations(User $user, PlayerProfile $playerProfile): bool
     {
-        // TODO(coder): the owning parent only — children are denied (FR-009/FR-011). Slice C.
-        throw new \RuntimeException('Not implemented');
+        // FR-009/FR-011: the owning parent only, never the child themselves.
+        return $user->id === $playerProfile->owner_user_id && ! $user->is_child_account;
+    }
+
+    /** The owning account, or the login this profile itself is backed by. */
+    protected function ownsOrIs(User $user, PlayerProfile $playerProfile): bool
+    {
+        return $user->id === $playerProfile->owner_user_id
+            || $user->id === $playerProfile->user_id;
     }
 }

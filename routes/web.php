@@ -23,11 +23,13 @@ Route::middleware(['auth'])->group(function (): void {
     Route::middleware(['verified'])->group(function (): void {
         Route::get('/dashboard', DashboardController::class)->name('dashboard');
 
-        Route::prefix('admin')->name('admin.')->group(function (): void {
+        Route::view('/trainer', 'dashboards.trainer')->middleware('role:trainer')->name('trainer.dashboard');
+        Route::view('/coach', 'dashboards.coach')->middleware('role:coach')->name('coach.dashboard');
+        Route::view('/player', 'dashboards.player')->middleware('role:player')->name('player.dashboard');
+
+        Route::prefix('admin')->name('admin.')->middleware('role:super_admin')->group(function (): void {
             Route::get('/users', UsersTable::class)->name('users.index');
             Route::get('/users/create', CreateTrainerForm::class)->name('users.create');
         });
-
-        // TODO(coder): role dashboards — trainer.dashboard, coach.dashboard, player.dashboard.
     });
 });
