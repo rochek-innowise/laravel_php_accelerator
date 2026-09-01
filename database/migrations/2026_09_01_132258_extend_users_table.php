@@ -8,8 +8,8 @@ use Illuminate\Support\Facades\Schema;
 
 return new class extends Migration
 {
-    // The skeleton's `name` column stays as the display name Fortify writes; first/last are the
-    // editable fields of FR-016. TODO(coder): drop `name` once nothing writes it (plan Step 2).
+    // first/last are the editable fields of FR-016; the skeleton's `name` column is dropped by the
+    // next migration and replaced with an accessor, so there is one source of truth.
     public function up(): void
     {
         Schema::table('users', function (Blueprint $table): void {

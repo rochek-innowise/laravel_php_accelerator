@@ -12,6 +12,7 @@ Sports-training platform: a Laravel monolith serving four roles (Super Admin, Tr
 | Auth | **Laravel Fortify 1.x** + Livewire 4, installed directly (`composer require laravel/fortify livewire/livewire` + `fortify:install`). Laravel 13's starter kits are project templates for `laravel new`, not installable into this existing repository; `laravel/breeze` is legacy |
 | Queue / schedule | `database` driver for MVP; a worker and the scheduler are **required runtime processes** (see AD-008) |
 | Tests | PHPUnit 12, run against **MariaDB**, not SQLite — the schema relies on MariaDB-only DDL (see AD-013) |
+| Static analysis | **Larastan level 5**, clean with no baseline (`composer analyse`); levels 6/7/8 report 17/20/55 and are a separate ratchet |
 
 ## Layering And Dependency Direction
 
@@ -141,6 +142,81 @@ NFR-002 asks for a 10,000-user list under 3 s. Server-side pagination with an in
 Livewire 4 generates **single-file components** by default, into `resources/views/components/…` with a `⚡` filename prefix. This project uses `php artisan make:livewire <Name> --class`, keeping components in `app/Livewire/` as the directory plan above states.
 
 Reason: components here are the HTTP entry points of the layering — they authorize, then delegate to an Action. That logic belongs in a class with a policy check and a component test, not inline in a Blade file. Recorded because the default is the other way, and an unflagged `make:livewire` will quietly produce the wrong shape.
+
+---
+
+### AD-015 — Account status is a per-request invariant, not a login check
+
+FR-017/FR-018 read as login rules, and implementing them only in the Fortify pipeline leaves a
+deactivated user inside a live session for its whole lifetime — seven days under Q-01.07, longer
+with a remember-me cookie. `EnsureAccountRemainsActive` therefore re-checks `users.status` on
+every request and terminates the session when it is not active; `EnsureAccountIsActive` stays in
+the login pipeline so the sign-in form can show a field-level error instead of a bare redirect.
+
+The middleware is appended to the **`web` group**, not to the `auth` group in `routes/web.php`.
+Fortify's own authenticated routes (profile, password, verification) and Livewire's `/update`
+endpoint live outside that group, and a deactivated session must not keep mutating data through
+them.
+
+**Consequence for Slice D:** the deactivate action needs no session bookkeeping of its own. Setting
+`status` is sufficient, and the next request from that user ends their session.
+
+---
+
+### AD-016 — Privilege and ownership columns are never mass-assignable
+
+`users.role`, `users.status` and `users.is_child_account` decide who someone is;
+`player_profiles.owner_user_id`, `coach_profiles.trainer_profile_id` and the other owner columns
+decide which tenant or family a record belongs to. None of them appear in a `#[Fillable]`
+allow-list. `audit_logs` has no allow-list at all — Eloquent guards every attribute — and is
+written only through `AuditLogger::log()` with `forceFill`.
+
+Reason: one `update($request->validated())` anywhere in a later slice would otherwise be a
+role escalation or a tenancy breach, and NFR-010 puts leakage at 0%. Actions that legitimately set
+these columns use `forceFill` or the relationship (`$user->trainerProfile()->create(...)`), which
+makes the deliberate write visible at the call site. Factories run under `Model::unguarded()`, so
+seeders and test fixtures are unaffected.
+
+---
+
+### AD-017 — The trainer invitation carries no token
+
+`TrainerInvitation` links to the password-request form rather than embedding a reset token. A
+token-bearing link inherits the broker's 60-minute TTL (NFR-009), which is fine for a reset the
+user just asked for and useless for an invitation opened the next morning. Minting the token from
+the form means the trainer creates it when they are ready to use it.
+
+Two properties follow: the mail never goes stale, and nothing sensitive reaches the serialized
+queue payload — the `database` queue driver persists job payloads, and `password_reset_tokens`
+stores only a hash precisely so the plaintext does not sit at rest.
+
+**Cost, accepted:** one extra step for the trainer (entering the address the mail already shows
+them), and no email verification via the invitation link itself.
+
+---
+
+### AD-018 — The unauthenticated auth surface is rate-limited and audited
+
+Fortify ships a limiter for login only. A `fortify` limiter now covers every unauthenticated write
+it registers — password reset above all, which is also the trainer onboarding path — at 10/minute
+per IP, with read-only view routes exempt via `Limit::none()` so a reloaded sign-in page cannot
+lock anyone out (NFR-007).
+
+Auth events write to the same audit trail as everything else (NFR-011): login, logout, failed
+attempt, throttled request, a session terminated by AD-015, and every authorization denial. Two
+wiring details are non-obvious and cost time to rediscover:
+
+- Listener methods are named `audit*`, not `handle*`. Laravel discovers listeners in
+  `app/Listeners` by the `handle` prefix, which double-registers them on top of explicit wiring.
+- Denials and throttles are audited from `withExceptions()->render()`, not `report()`. Laravel
+  ignores `AuthorizationException` and `HttpException` for reporting, and `render()` runs
+  `prepareException()` before matching callbacks — so the callback must be typed against
+  `AccessDeniedHttpException`, not `AuthorizationException`. With a custom login limiter
+  configured, Fortify never reaches the action that fires `Lockout`, which is why the throttle is
+  audited from the exception layer too.
+
+The attempted address is recorded; the submitted password never is — `Failed` carries it in
+`$credentials`, so the payload is picked apart by hand rather than passed through.
 
 ---
 

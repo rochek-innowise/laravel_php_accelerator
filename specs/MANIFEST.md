@@ -21,10 +21,20 @@ A multi-tenant Laravel platform where independent trainers run their training or
 - **Admin UI**: hand-rolled Livewire for Epic-01; Filament reconsidered at Epic-07.
 - **Real-time**: none. Database notifications + `wire:poll`; Reverb reconsidered at Epic-02.
 - **Runtime**: a queue worker and the scheduler are required processes, not optional ops.
+- **Account status**: enforced on every request, not only at login — a deactivated session ends on
+  its next request (AD-015). Slice D's deactivate action needs no session bookkeeping of its own.
+- **Mass assignment**: privilege and ownership columns are never in a `#[Fillable]` allow-list;
+  actions set them via `forceFill` or the relationship (AD-016).
+- **Trainer invitation**: links to the password-request form, carrying no token — no TTL to expire
+  and nothing sensitive in the queue payload (AD-017).
 
 ## Tech Stack
 
-PHP 8.4 · Laravel 13 · MariaDB 11.8 · DDEV (nginx-fpm) · Blade + Livewire + Alpine · Vite + Tailwind + Flux UI (free tier) · PHPUnit 12 against MariaDB · `intervention/image` for uploads
+PHP 8.4 · Laravel 13 · MariaDB 11.8 · DDEV (nginx-fpm) · Blade + Livewire 4 + Alpine · Vite + Tailwind · PHPUnit 12 against MariaDB · Larastan level 5
+
+**Not installed yet, despite earlier plans:** `livewire/flux` (Slice A uses plain accessible Blade;
+revisit when a component needs more than a form and a table) and `intervention/image` (arrives with
+the profile-photo work, which is deferred to the file-storage effort).
 
 ## Roadmap Context
 
