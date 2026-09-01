@@ -6,6 +6,7 @@ namespace App\Http\Middleware;
 
 use App\Enums\UserStatus;
 use App\Models\User;
+use App\Services\AuditLogger;
 use Closure;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
@@ -41,6 +42,9 @@ final class EnsureAccountRemainsActive
     /** Logout cycles the remember token, so the cookie the browser still holds is dead too. */
     protected function terminateSession(Request $request): void
     {
+        // Audited before the logout, while there is still an actor to attribute it to (A09).
+        app(AuditLogger::class)->log('auth.session_terminated', $request->user());
+
         Auth::logout();
 
         if (! $request->hasSession()) {

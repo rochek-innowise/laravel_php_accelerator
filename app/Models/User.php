@@ -85,6 +85,19 @@ class User extends Authenticatable implements MustVerifyEmail
         return $this->hasOne(PlayerProfile::class);
     }
 
+    /**
+     * A non-active account gets no reset link. The broker still reports success, so the response
+     * stays identical for every address and no account-enumeration oracle appears.
+     */
+    public function sendPasswordResetNotification($token): void
+    {
+        if (! $this->status->canLogIn()) {
+            return;
+        }
+
+        parent::sendPasswordResetNotification($token);
+    }
+
     public function isSuperAdmin(): bool
     {
         return $this->role === Role::SuperAdmin;

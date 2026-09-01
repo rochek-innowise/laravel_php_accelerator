@@ -4,9 +4,12 @@ declare(strict_types=1);
 
 namespace App\Providers;
 
+use App\Listeners\AuditAuthenticationEvents;
 use App\Models\User;
 use App\Support\Authorization\ChildAbilities;
+use Illuminate\Auth\Events\Failed;
 use Illuminate\Auth\Events\Login;
+use Illuminate\Auth\Events\Logout;
 use Illuminate\Support\Facades\Event;
 use Illuminate\Support\Facades\Gate;
 use Illuminate\Support\ServiceProvider;
@@ -34,6 +37,7 @@ class AppServiceProvider extends ServiceProvider
     {
         $this->registerGates();
         $this->recordSuccessfulLogins();
+        $this->auditAuthenticationEvents();
     }
 
     /**
@@ -80,6 +84,14 @@ class AppServiceProvider extends ServiceProvider
 
             $event->user->forceFill(['last_login_at' => now()])->saveQuietly();
         });
+    }
+
+    /** NFR-011 / A09: the auth surface writes to the same audit trail as everything else. */
+    protected function auditAuthenticationEvents(): void
+    {
+        Event::listen(Login::class, [AuditAuthenticationEvents::class, 'auditLogin']);
+        Event::listen(Logout::class, [AuditAuthenticationEvents::class, 'auditLogout']);
+        Event::listen(Failed::class, [AuditAuthenticationEvents::class, 'auditFailed']);
     }
 
     protected function isImpersonating(): bool

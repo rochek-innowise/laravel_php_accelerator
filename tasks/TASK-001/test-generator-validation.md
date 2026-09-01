@@ -17,8 +17,8 @@ The map records coverage, not correctness.
 | A guest cannot reach an authenticated page | FR-001 | `tests/Feature/Auth/LoginTest.php::test_a_guest_is_redirected_to_login` | covered |
 | Last login timestamp is recorded | FR-001 | `tests/Feature/Auth/LoginTest.php::test_login_records_the_last_login_timestamp` | covered |
 | A refused login records no timestamp | FR-001, FR-017 | `tests/Feature/Auth/LoginTest.php::test_a_refused_login_does_not_record_a_login_timestamp` | covered |
-| Password reset flow works end to end | FR-002 | — | uncovered |
-| Email verification gates actions, not login | FR-003, Q-01.05a | `tests/Feature/DashboardRoutingTest.php::test_an_unverified_user_reaches_their_profile_but_not_a_dashboard` | partial — the verification link round trip itself is untested |
+| Password reset flow works end to end | FR-002 | `tests/Feature/Auth/PasswordResetTest.php` | covered — full round trip, stale token refused, and no link mailed to a non-active account |
+| Email verification gates actions, not login | FR-003, Q-01.05a | `tests/Feature/DashboardRoutingTest.php::test_an_unverified_user_reaches_their_profile_but_not_a_dashboard`, `tests/Feature/Auth/EmailVerificationTest.php` | covered — signed-link round trip, unsigned link refused, resend works |
 | Each role lands on its own dashboard | FR-004 | `tests/Feature/DashboardRoutingTest.php::test_each_role_is_redirected_to_its_own_dashboard` | covered |
 | A role cannot reach another role's screens | FR-004 | `tests/Feature/DashboardRoutingTest.php::test_a_player_cannot_reach_the_trainer_dashboard`, `::test_a_coach_cannot_reach_the_player_dashboard` | covered |
 | Super Admin reaches every role's screens | FR-004, §6 | `tests/Feature/DashboardRoutingTest.php::test_a_super_admin_may_reach_any_role_dashboard` | covered |
@@ -58,10 +58,11 @@ The map records coverage, not correctness.
 | Login attempts are rate limited | NFR-007 | `tests/Feature/Auth/LoginTest.php::test_repeated_attempts_are_throttled` | covered |
 | Password reset requests are rate limited | NFR-007 | `tests/Feature/Auth/PasswordResetThrottleTest.php` | covered — Fortify ships a limiter for login only; reset had none |
 | Owner and tenancy columns are not mass-assignable | NFR-010, NFR-011 | `tests/Feature/Authorization/MassAssignmentTest.php::test_profile_owner_columns_cannot_be_mass_assigned`, `::test_an_audit_row_cannot_be_mass_assigned_at_all` | covered |
-| State-changing requests are CSRF protected | NFR-008 | — | uncovered |
+| State-changing requests are CSRF protected | NFR-008 | `tests/Feature/CsrfProtectionTest.php` | partial — no exemptions and every posting form emits a token; an HTTP-level assertion is impossible because ValidateCsrfToken short-circuits under `runningUnitTests()` |
 | Token TTLs: verification 24 h, reset 1 h | NFR-009 | — | uncovered — the trainer invitation no longer depends on a TTL; the reset and verification link TTLs themselves are still untested |
 | The directory stays paginated at scale | NFR-002 | `tests/Feature/Admin/UsersDirectoryTest.php::test_the_listing_is_paginated` | partial — page size is asserted; the 10k-row timing target is not, and a timing assertion would be flaky |
 | Sensitive operations are audited with both identities | NFR-011 | `tests/Feature/Admin/CreateTrainerAccountTest.php::test_the_creation_is_audited_with_the_acting_admin` | partial — trainer creation only; impersonation and deletion are Slice D |
+| Auth events are audited (login, logout, failure, throttle, forced logout, denial) | NFR-011, A09 | `tests/Feature/Auth/AuthAuditTest.php` | covered — the attempted address is recorded, the submitted password never is |
 | WCAG 2.1 AA | NFR-012 | — | uncovered — needs the real markup, which is the frontend work |
 
 ## Notes
