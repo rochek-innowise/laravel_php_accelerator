@@ -23,6 +23,12 @@
             </a>
 
             <div class="flex shrink-0 items-center gap-3 lg:order-last lg:flex-col lg:items-stretch lg:gap-3 lg:border-t lg:border-field/20 lg:pt-4">
+                {{-- The active organisation is always visible: session-held context means two tabs
+                     on two organisations fight each other, and seeing which one is active is the
+                     accepted mitigation for that trade-off. --}}
+                <livewire:context.trainer-switcher />
+                <livewire:context.profile-switcher />
+
                 <p class="hidden text-sm font-medium text-field lg:block">{{ auth()->user()->name }}</p>
 
                 <x-ui.role-tag :role="auth()->user()->role" inverted />
@@ -45,6 +51,16 @@
                 <x-ui.nav-link :href="route('profile')" :active="request()->routeIs('profile')">
                     Profile
                 </x-ui.nav-link>
+
+                @if (auth()->user()->role === \App\Enums\Role::Trainer)
+                    <x-ui.nav-link :href="route('trainer.coaches')" :active="request()->routeIs('trainer.coaches')">
+                        Coaches
+                    </x-ui.nav-link>
+
+                    <x-ui.nav-link :href="route('trainer.share-links')" :active="request()->routeIs('trainer.share-links')">
+                        Invitation link
+                    </x-ui.nav-link>
+                @endif
 
                 @if (auth()->user()->isSuperAdmin())
                     <x-ui.nav-link :href="route('admin.users.index')" :active="request()->routeIs('admin.users.*')">
