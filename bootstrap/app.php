@@ -1,6 +1,7 @@
 <?php
 
 use App\Http\Middleware\EnsureAccountRemainsActive;
+use App\Http\Middleware\EnsureTrainerContext;
 use App\Http\Middleware\EnsureUserHasRole;
 use App\Services\AuditLogger;
 use Illuminate\Foundation\Application;
@@ -25,6 +26,12 @@ return Application::configure(basePath: dirname(__DIR__))
         // authenticated routes (profile, password, verification) and Livewire's update endpoint
         // must be covered too, or a deactivated session keeps mutating data (FR-017/FR-018).
         $middleware->appendToGroup('web', EnsureAccountRemainsActive::class);
+
+        // Also appended to `web` rather than to a route group, and for the same reason: Livewire's
+        // update endpoint must carry the tenant too. Without it a component that renders correctly
+        // on first paint returns an empty list on its next round trip, because the fail-closed
+        // scope sees no context there (AD-001).
+        $middleware->appendToGroup('web', EnsureTrainerContext::class);
     })
     ->withExceptions(function (Exceptions $exceptions): void {
         $exceptions->shouldRenderJsonWhen(
