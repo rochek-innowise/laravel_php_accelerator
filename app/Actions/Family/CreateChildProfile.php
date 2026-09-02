@@ -12,6 +12,7 @@ use App\Models\User;
 use App\Services\AuditLogger;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\RateLimiter;
 use Illuminate\Support\Str;
 use Illuminate\Validation\ValidationException;
 
@@ -35,6 +36,12 @@ final class CreateChildProfile
 
         if (! $data->confirmDuplicate) {
             $this->assertNoLikelyDuplicate($actor, $data);
+        }
+
+        // Checked before any write, like the two guards above: a rate-limited attempt should fail
+        // the whole submission rather than roll back a profile the transaction already committed to.
+        if ($data->wantsLogin) {
+            $this->guardAgainstLoginCreationFlooding();
         }
 
         return DB::transaction(function () use ($actor, $data): PlayerProfile {
@@ -92,11 +99,46 @@ final class CreateChildProfile
             'password_confirmation' => (string) $data->loginPasswordConfirmation,
         ]);
 
-        $child->forceFill(['is_child_account' => true])->save();
+        // Never mass-assigned (AD-016): `is_child_account` decides privilege, and
+        // `email_verified_at` decides whether the `verified` middleware lets this login through.
+        // Verified at creation, not left null pending a mail the child may have no independent way
+        // to receive: the guardian's own already-verified account is what vouches for this
+        // address, and FR-011 gives the child no path to verify it themselves (there is no
+        // `Registered` event on this flow, so nothing would ever prompt it). Without this, a
+        // freshly created child login could never pass `verified` and so could never reach
+        // `/approvals` — unreachable in practice despite FR-011 requiring it.
+        $child->forceFill([
+            'is_child_account' => true,
+            'email_verified_at' => now(),
+        ])->save();
 
         // Never mass-assigned: a request-supplied user_id would let one account claim another
         // family's child (AD-016).
         $profile->forceFill(['user_id' => $child->getKey()])->save();
+    }
+
+    /**
+     * A second account-creation surface next to `/join/{code}` (AD-004), reachable by any
+     * authenticated guardian repeatedly submitting this form. Without a limit, it is unbounded
+     * `Active` `User` creation on arbitrary addresses — which also turns `CreateNewUser`'s
+     * `Rule::unique` failure into an email-existence oracle, and lets someone squat a third
+     * party's address so it can never register through `/join/{code}` afterwards. Mirrors
+     * `RedeemShareLink::guardAgainstRegistrationFlooding()` exactly rather than inventing a second
+     * mechanism.
+     *
+     * @throws ValidationException
+     */
+    private function guardAgainstLoginCreationFlooding(): void
+    {
+        $key = 'family:child-login:'.request()->ip();
+
+        if (RateLimiter::tooManyAttempts($key, maxAttempts: 5)) {
+            throw ValidationException::withMessages([
+                'email' => 'Too many child logins created from here. Try again in a few minutes.',
+            ]);
+        }
+
+        RateLimiter::hit($key, decaySeconds: 300);
     }
 
     /**

@@ -120,6 +120,37 @@ final class ChildFormTest extends TestCase
         $this->assertSame('casey@example.test', $profile->user->email);
     }
 
+    /**
+     * FR-011. `/approvals` sits behind the `verified` middleware, and this flow issues no
+     * `Registered` event, so without marking the login verified at creation the child it just made
+     * a login for could never reach the screen FR-011 requires them to see.
+     */
+    #[Test]
+    public function a_freshly_created_child_login_can_reach_the_approvals_screen(): void
+    {
+        $parent = User::factory()->create();
+
+        Livewire::actingAs($parent)
+            ->test(ChildForm::class)
+            ->set('name', 'Approvals Kid')
+            ->set('birth_date', now()->subYears(9)->toDateString())
+            ->set('gender', 'other')
+            ->set('wantsLogin', true)
+            ->set('email', 'approvals-kid@example.test')
+            ->set('password', 'correct-horse-battery-staple')
+            ->set('password_confirmation', 'correct-horse-battery-staple')
+            ->call('save')
+            ->assertHasNoErrors();
+
+        $child = PlayerProfile::where('name', 'Approvals Kid')->firstOrFail()->user;
+
+        $this->assertNotNull($child);
+
+        $this->actingAs($child)
+            ->get(route('approvals.index'))
+            ->assertOk();
+    }
+
     #[Test]
     public function an_uploaded_photo_is_stored_full_size_with_no_thumbnail(): void
     {

@@ -16,6 +16,10 @@ use Illuminate\Notifications\Notification;
  * or denied, so "the child sees the status transition" holds even though they never see the
  * approval queue itself. Never sent for a bypassed row (there was no decision to report) or an
  * expired one (`PurchaseApprovalExpired` covers that, to the guardians who let it lapse).
+ *
+ * The `PurchaseApproval` constructor property is safe in the queued payload without an explicit
+ * `use SerializesModels;` here — inherited from `Illuminate\Notifications\Notification`, which
+ * already uses that trait. See `QueuePayloadPiiCheckTest`.
  */
 final class PurchaseApprovalResolved extends Notification implements ShouldQueue
 {

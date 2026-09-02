@@ -15,6 +15,10 @@ use Illuminate\Notifications\Notification;
  * required it (`token_spend_requires_approval === false`). Informational only — the row this
  * refers to is already `approved`, there is nothing to act on, but a guardian who never opted in
  * to the bypass should still see it happened.
+ *
+ * The `PurchaseApproval` constructor property is safe in the queued payload without an explicit
+ * `use SerializesModels;` here — inherited from `Illuminate\Notifications\Notification`, which
+ * already uses that trait. See `QueuePayloadPiiCheckTest`.
  */
 final class PurchaseApprovalBypassed extends Notification implements ShouldQueue
 {

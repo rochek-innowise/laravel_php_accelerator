@@ -15,6 +15,12 @@ use Illuminate\Notifications\Notification;
  * FR-011. A child login following an invitation link is refused association, but not silently:
  * every guardian gets this, carrying the link itself and a "Review Registration" CTA that reaches
  * the ordinary checklist flow Slice B already built — nothing new is needed on the parent's side.
+ *
+ * The `ShareLink` and `PlayerProfile` constructor properties are safe in the queued job payload
+ * without an explicit `use SerializesModels;` here: this class extends
+ * `Illuminate\Notifications\Notification`, which already `use`s that trait, so the child's name
+ * and birth date never reach the `jobs` table — only a class+id `ModelIdentifier` does. See
+ * `QueuePayloadPiiCheckTest` for the assertion against the real serialized payload.
  */
 final class ChildShareLinkBlocked extends Notification implements ShouldQueue
 {

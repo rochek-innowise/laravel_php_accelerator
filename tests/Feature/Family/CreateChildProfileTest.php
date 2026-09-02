@@ -12,6 +12,7 @@ use App\Models\PlayerProfile;
 use App\Models\TrainerPlayer;
 use App\Models\TrainerProfile;
 use App\Models\User;
+use Illuminate\Support\Facades\RateLimiter;
 use Illuminate\Validation\ValidationException;
 use PHPUnit\Framework\Attributes\Test;
 use Tests\TestCase;
@@ -162,6 +163,82 @@ final class CreateChildProfileTest extends TestCase
         $this->assertNotNull($child);
         $this->assertTrue($profile->is_child);
         $this->assertTrue($child->is_child_account);
+    }
+
+    /**
+     * FR-011. `ChildForm` creates the login without a `Registered` event, so `email_verified_at`
+     * would otherwise stay null forever and the login could never pass the `verified` middleware
+     * that guards `/family` and `/approvals` — unreachable in practice even though FR-011 requires
+     * a child to see its own purchase-status transitions there. The guardian's own verified account
+     * is what vouches for the address.
+     */
+    #[Test]
+    public function a_child_login_is_created_already_verified(): void
+    {
+        $parent = User::factory()->create();
+
+        $profile = app(CreateChildProfile::class)->handle($parent, $this->data(
+            wantsLogin: true,
+            loginEmail: 'verified-kid@example.test',
+            loginPassword: 'correct-horse-battery-staple',
+            loginPasswordConfirmation: 'correct-horse-battery-staple',
+        ))->fresh();
+
+        $this->assertNotNull($profile->user);
+        $this->assertNotNull($profile->user->email_verified_at);
+    }
+
+    /**
+     * A second account-creation surface next to `/join/{code}` (AD-004): an authenticated guardian
+     * could otherwise create unlimited `Active` `User` rows on arbitrary addresses. Mirrors
+     * `JoinHardeningTest::repeated_registrations_from_one_address_are_throttled`.
+     */
+    #[Test]
+    public function repeated_child_login_creation_from_one_address_is_throttled(): void
+    {
+        $parent = User::factory()->create();
+
+        foreach (range(1, 5) as $i) {
+            app(CreateChildProfile::class)->handle($parent, $this->data(
+                name: "Kid {$i}",
+                wantsLogin: true,
+                loginEmail: "kid{$i}@example.test",
+                loginPassword: 'correct-horse-battery-staple',
+                loginPasswordConfirmation: 'correct-horse-battery-staple',
+            ));
+        }
+
+        $this->expectException(ValidationException::class);
+
+        try {
+            app(CreateChildProfile::class)->handle($parent, $this->data(
+                name: 'Kid 6',
+                wantsLogin: true,
+                loginEmail: 'kid6@example.test',
+                loginPassword: 'correct-horse-battery-staple',
+                loginPasswordConfirmation: 'correct-horse-battery-staple',
+            ));
+        } finally {
+            $this->assertDatabaseMissing('users', ['email' => 'kid6@example.test']);
+            $this->assertDatabaseMissing('player_profiles', ['name' => 'Kid 6']);
+
+            RateLimiter::clear('family:child-login:127.0.0.1');
+        }
+    }
+
+    /** A child profile created with no login at all must never be throttled by the login guard. */
+    #[Test]
+    public function creating_children_without_a_login_is_never_throttled(): void
+    {
+        $parent = User::factory()->create();
+
+        foreach (range(1, 6) as $i) {
+            $profile = app(CreateChildProfile::class)->handle($parent, $this->data(name: "Loginless Kid {$i}"));
+
+            $this->assertNull($profile->fresh()->user_id);
+        }
+
+        $this->assertSame(6, $parent->guardedPlayerProfiles()->count());
     }
 
     /** Mirrors ChildAccountInvariantTest, but calls the action directly rather than seeding. */

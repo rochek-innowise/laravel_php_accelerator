@@ -16,6 +16,11 @@ use Illuminate\Notifications\Notification;
  * the request a guardian must act on within 48 hours before `ExpirePurchaseApprovalsJob` auto-
  * expires it. `via()` includes `database` (AD-011): the bell needs an in-app record too, not just
  * an email a guardian might not see in time.
+ *
+ * The `PurchaseApproval` constructor property (and the child it belongs to, reached via
+ * `$approval->playerProfile`) is safe in the queued payload without an explicit
+ * `use SerializesModels;` here — inherited from `Illuminate\Notifications\Notification`, which
+ * already uses that trait. See `QueuePayloadPiiCheckTest`.
  */
 final class PurchaseApprovalRequested extends Notification implements ShouldQueue
 {

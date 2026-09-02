@@ -13,6 +13,10 @@ use Illuminate\Notifications\Notification;
 /**
  * NFR-009 / BR-015. Sent to every guardian when `ExpirePurchaseApprovalsJob` auto-denies a request
  * nobody answered within 48 hours.
+ *
+ * The `PurchaseApproval` constructor property is safe in the queued payload without an explicit
+ * `use SerializesModels;` here — inherited from `Illuminate\Notifications\Notification`, which
+ * already uses that trait. See `QueuePayloadPiiCheckTest`.
  */
 final class PurchaseApprovalExpired extends Notification implements ShouldQueue
 {
