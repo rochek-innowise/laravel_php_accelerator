@@ -159,7 +159,16 @@ final class ChildForm extends Component
             return $this->singleTrainerJoins ? $available->pluck('id')->all() : [];
         }
 
-        return array_map('intval', $this->selectedTrainerIds);
+        // Re-derived against the family's own trainers, never trusted from the checklist: these
+        // ids arrive on a public Livewire property, and `TrainerProfile` is identity-class and
+        // unscoped, so a forged id would otherwise enrol this child into an organisation the
+        // family has no relationship with — a cross-tenant write against NFR-010. Forged ids drop
+        // inertly rather than raising, which keeps this from confirming that an id exists.
+        // `Overview::addTrainer` guards its own picker the same way.
+        return array_values(array_intersect(
+            array_map('intval', $this->selectedTrainerIds),
+            $available->pluck('id')->map(fn (mixed $id): int => (int) $id)->all(),
+        ));
     }
 
     /**

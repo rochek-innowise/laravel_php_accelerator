@@ -28,6 +28,12 @@ use Illuminate\Support\Facades\URL;
  */
 // `owner_user_id` is gone: guardianship lives in player_guardians so a child can have both
 // parents. A self profile has no guardian row — it is reached through `user_id`.
+//
+// `token_spend_requires_approval` is deliberately absent (AD-016): it decides whether a spend
+// skips parental approval entirely, so it is a privilege column, not a preference. Nothing
+// mass-assigns it today, but FR-010's per-child toggle arrives with Epic-05 and an
+// `update($validated)` there would let a child login clear its own guard. Set it with `forceFill`
+// in the owning action.
 #[Fillable([
     'name',
     'birth_date',
@@ -37,7 +43,6 @@ use Illuminate\Support\Facades\URL;
     'jersey_number',
     'is_child',
     'emergency_contact',
-    'token_spend_requires_approval',
 ])]
 class PlayerProfile extends Model
 {

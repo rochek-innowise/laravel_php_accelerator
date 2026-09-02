@@ -4,8 +4,11 @@ declare(strict_types=1);
 
 namespace Tests\Feature\Family;
 
+use App\Actions\Family\AssociatePlayersWithTrainer;
 use App\Livewire\Family\ChildForm;
 use App\Models\PlayerProfile;
+use App\Models\TrainerPlayer;
+use App\Models\TrainerProfile;
 use App\Models\User;
 use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\Storage;
@@ -174,5 +177,84 @@ final class ChildFormTest extends TestCase
         $trainer = User::factory()->trainer()->create();
 
         $this->actingAs($trainer)->get(route('family.children.create'))->assertForbidden();
+    }
+
+    /**
+     * NFR-010: the checklist arrives on a public Livewire property, so a submitted trainer id is a
+     * request, not a decision. A forged one used to write a `trainer_players` row inside an
+     * organisation the family has no relationship with — enrolling a child with no ShareLink, no
+     * invitation and no consent from that organisation, and rendering its name back on /family.
+     */
+    #[Test]
+    public function a_forged_trainer_id_associates_nothing(): void
+    {
+        $parent = User::factory()->create();
+        $self = PlayerProfile::factory()->selfProfile($parent)->create();
+
+        // Two reachable trainers, because the single-trainer branch takes a different path: this
+        // has to exercise the checklist, which is what the multi-trainer parent sees.
+        $reachable = TrainerProfile::factory()->create();
+        $alsoReachable = TrainerProfile::factory()->create();
+        $stranger = TrainerProfile::factory()->create();
+
+        $associate = app(AssociatePlayersWithTrainer::class);
+        $associate->handle($reachable, $parent, [$self->id]);
+        $associate->handle($alsoReachable, $parent, [$self->id]);
+
+        Livewire::actingAs($parent)
+            ->test(ChildForm::class)
+            ->set('name', 'Forged Target')
+            ->set('birth_date', now()->subYears(9)->toDateString())
+            ->set('gender', 'male')
+            ->set('selectedTrainerIds', [$stranger->id])
+            ->call('save')
+            ->assertHasNoErrors();
+
+        $profile = PlayerProfile::where('name', 'Forged Target')->firstOrFail();
+
+        $this->assertSame(
+            0,
+            TrainerPlayer::withoutGlobalScopes()
+                ->where('player_profile_id', $profile->id)
+                ->count(),
+            'A forged trainer id must associate the child with nobody at all.'
+        );
+    }
+
+    /**
+     * The other half of the same guard: dropping a forged id must not discard a legitimate one
+     * submitted alongside it.
+     */
+    #[Test]
+    public function a_legitimate_trainer_id_still_associates_when_submitted_beside_a_forged_one(): void
+    {
+        $parent = User::factory()->create();
+        $self = PlayerProfile::factory()->selfProfile($parent)->create();
+
+        $reachable = TrainerProfile::factory()->create();
+        $alsoReachable = TrainerProfile::factory()->create();
+        $stranger = TrainerProfile::factory()->create();
+
+        $associate = app(AssociatePlayersWithTrainer::class);
+        $associate->handle($reachable, $parent, [$self->id]);
+        $associate->handle($alsoReachable, $parent, [$self->id]);
+
+        Livewire::actingAs($parent)
+            ->test(ChildForm::class)
+            ->set('name', 'Mixed Submission')
+            ->set('birth_date', now()->subYears(9)->toDateString())
+            ->set('gender', 'male')
+            ->set('selectedTrainerIds', [$stranger->id, $reachable->id])
+            ->call('save')
+            ->assertHasNoErrors();
+
+        $profile = PlayerProfile::where('name', 'Mixed Submission')->firstOrFail();
+
+        $associations = TrainerPlayer::withoutGlobalScopes()
+            ->where('player_profile_id', $profile->id)
+            ->pluck('trainer_profile_id')
+            ->all();
+
+        $this->assertSame([$reachable->id], $associations);
     }
 }
