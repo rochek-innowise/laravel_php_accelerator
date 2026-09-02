@@ -6,7 +6,7 @@ A multi-tenant Laravel platform where independent trainers run their training or
 
 | File | Purpose | Depends On | Last Updated |
 |------|---------|------------|--------------|
-| architect-architecture.md | System design, layering, tenancy, architecture decisions | - | 2026-09-02 |
+| architect-architecture.md | System design, layering, tenancy, architecture decisions | - | 2026-09-02 (Slice C added) |
 | api-designer-spec.md | Endpoints, schemas, authentication | architect-architecture | not created — no public API in Epic-01 |
 | frontend-design-spec.md | Pages, components, state management | architect-architecture | not created |
 | docs-generator-implementation.md | Build process, deployment, tooling | - | not created |
@@ -35,6 +35,16 @@ A multi-tenant Laravel platform where independent trainers run their training or
   actions set them via `forceFill` or the relationship (AD-016).
 - **Trainer invitation**: links to the password-request form, carrying no token — no TTL to expire
   and nothing sensitive in the queue payload (AD-017).
+- **Purchase approvals**: guardian-approved purchases flow through `PurchaseApproval`, a 48-hour
+  expiring request state machine reachable via the child's owner profile, not tenant-scoped (AD-021).
+  Approval transitions use conditional updates to guard idempotency, deferred to Epic-05 (AD-022).
+- **Child login optionality**: a child profile may carry its own login with email and password,
+  created in the same transaction as the profile with `is_child_account = true`, verified at
+  creation (AD-023). A child login is denied everything on the deny list and sees only its own
+  approvals on `/approvals`.
+- **Scheduler is functional**: the 48-hour approval expiry (NFR-009) is exercised only if the
+  scheduler runs every 15 minutes. Without it, pending approvals sit forever — no API fallback,
+  no cached state. Listed here because overlooking it would be a silent runaway.
 
 ## Tech Stack
 

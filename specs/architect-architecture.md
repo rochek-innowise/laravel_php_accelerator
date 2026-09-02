@@ -295,6 +295,74 @@ Ruling: the suite runs against a MariaDB test database in DDEV. An in-memory SQL
 
 ---
 
+### AD-021 — The purchase-approval domain is owner-scoped, not tenant-owned
+
+`PurchaseApproval` is reached only through its owning `PlayerProfile`, never from a trainer screen
+or a tenant query. Unlike `TrainerPlayer` (tenant-owned, `BelongsToTenant`), purchase approvals
+carry no `trainer_profile_id` and are not scoped by the active tenant — they are AD-001's third
+data class (alongside `User`, `TrainerProfile`, identity relations): reachable via identity reads
+only.
+
+The consequence: a guardian's approval queue reads through `PlayerProfile::purchaseApprovals()`, a
+per-child relation bearing the child's owner, never through a tenant-scoped join. Isolation is by
+reachability, not by column. This design sidesteps the row-locking problem that would arise if every
+guardian approval held a tenant context and approval writes contended for the same row under
+separate `runFor()` scopes.
+
+---
+
+### AD-022 — The executor placement is a defer for Epic-05, not a bug
+
+`ApprovedPurchaseExecutor::execute()` is invoked **inside the transaction** that performs the
+`pending` → `approved` transition — see `RespondToPurchaseApproval::handle()` and the token-bypass
+path in `RequestPurchaseApproval::handle()`, both wrapping the state update and executor call in
+`DB::transaction()`.
+
+This is safe today only because `NullPurchaseExecutor` does nothing: it writes an audit entry and
+returns. **Once this becomes a real payment call** (a Stripe charge, a token ledger write, any
+network round trip), the placement becomes a double-charge trap on two fronts:
+
+1. **Lock duration**: the executor runs while the approval row is held for update, so a slow network
+   call holds the lock for seconds.
+2. **Rollback after charge**: a successful charge followed by a transaction commit failure rolls the
+   status back to `pending` while the charge stands, and a retry applies the conditional-update
+   guard (`where('status', 'pending')`) to a row still in pending state, charging twice.
+
+**Epic-05 must make a design decision** before this interface backs a real payment call: either move
+the call behind `DB::afterCommit()` (which trades double-charge for committed-unapproved: a
+committed `approved` status with nothing charged if the after-commit call fails), or introduce an
+execution-state column and an outbox pattern so both the status and the execution state commit
+atomically.
+
+The conditional-update guard itself is load-bearing and must remain in every approved path:
+`RespondToPurchaseApproval` uses it to make double-approvals idempotent, and `ExpirePurchaseApprovalsJob`
+uses it to ensure a row a guardian just approved in the same second cannot be double-flipped to
+expired. That guard cost nothing to establish now and is the baseline every solution must build on.
+
+---
+
+### AD-023 — A child login can reach its approvals but cannot manage anything
+
+A child with its own login (`is_child_account = true`) is reachable as `PlayerProfile::user_id` and
+may access its own profile for reading. The `/approvals` screen displays only its own pending
+requests, reached through `PlayerProfile::purchaseApprovals()`, so the child sees the consequences
+of its actions.
+
+The deny list (AD-005) forbids `trainer.associate`, `purchase.complete`, `tokens.purchase`,
+`payment-method.*`, `account.delete`, `trainer-association.change`, `parent-data.view`, and is
+the single source of truth for all child restrictions — no duplicate checks elsewhere.
+`PlayerProfilePolicy::manageTrainerAssociations()` explicitly refuses a child login even for its
+own profile, so a child and its guardians never disagree about who may edit the profile's
+associations.
+
+**Guardian-created child logins are marked verified at creation**: the profile-and-user creation
+happens in one transaction in `CreateChildProfileAction`, and if a login is requested, it is
+created with `is_child_account = true` and the user is marked verified (no separate
+`Registered` event, no verification flow) because the child owns no email address the parent may
+not control and has no path to verify it anyway.
+
+---
+
 ### [TASK-001] Epic-01 User Management & Authentication (2026-09-01)
 
 **Module:** Identity, tenancy, onboarding, family accounts, admin tooling
@@ -426,3 +494,127 @@ a worker would inherit the previous user's tenant.
 **Not verified:** migration `down()` methods still have not been executed — the project's bash
 validator blocks `migrate:rollback` and `migrate:fresh`, so the generated-column teardown (which
 must drop the index before the column) is unexercised. See `MEM-20260902-fcadf3e6`.
+
+---
+
+## [TASK-001] Slice C — Family Profiles, Approvals And Child Accounts (implemented)
+
+Slice C ships child profiles with optional child logins, guardian-managed trainer associations, and
+a 48-hour purchase-approval domain exercised end-to-end against a test double.
+
+### The approval state machine and idempotency guard
+
+A purchase initiates a `PurchaseApproval` with status `pending` (or already `approved` if it bypasses
+approval via BR-014) and `expires_at = now() + 48 hours` (NFR-009). A guardian approves or denies
+from `/approvals`, and `RespondToPurchaseApproval` performs the state transition with a conditional
+update:
+
+```sql
+UPDATE purchase_approvals
+SET status = ?, responded_at = now(), parent_note = ?
+WHERE id = ? AND status = 'pending'
+```
+
+Only if one row is affected does the executor run and the guardian is notified. A double-click or a
+race with `ExpirePurchaseApprovalsJob` changes nothing — the second call finds the row already
+transitioned and returns false. The job applies the same conditional guard per row, so a row
+approved in the same second as the sweep cannot be double-flipped to `expired`. This idempotency
+pattern was established in Slice C so Epic-05 inherits correctness rather than discovering it later.
+
+### Child registration: optional login on profile creation
+
+`CreateChildProfileAction` accepts an optional `wantsLogin` flag with email and password. If true:
+
+1. `CreateNewUser` validates and creates the `User` (reused from `Fortify\CreateNewUser`).
+2. `User::is_child_account` is set to `true` via `forceFill`.
+3. The user is marked **verified** at creation — no verification email, no separate event, because a
+   child owns no email they control.
+4. The `PlayerProfile` is created with `user_id` pointing to the new `User`.
+5. Both operations happen in a single transaction, so the invariant `MEM-20260902-063160c0`
+   (is_child_account must agree with the backing profile's is_child) is first exercised in
+   production, not just over seeded data.
+
+A profile-only child (no login) remains fully supported. The distinction is enforced at action entry:
+a profile-only child throws on `RequestPurchaseApproval` because there is no login to initiate
+the purchase.
+
+### Child-login restrictions and the ShareLink experience
+
+A child login is denied everything on the `ChildAbilities::DENIED` list (AD-005) — including
+`trainer.associate`, which fires when a child tries to join via `/join/{code}`.
+
+Rather than a bare 403, the `/join/{code}` component detects the child login and renders friendly
+copy: "Ask a parent to enrol you", plus `ChildShareLinkBlocked` notification to all guardians
+carrying the link code. The refusal is throttled per child login per Share Link (using
+`RateLimiter` the same way `register()` throttles registration) because the join attempt sits
+behind Livewire's update endpoint, unreachable to a route-level limiter.
+
+### Guardian-scoped trainer associations and the `/family` screen
+
+`/family` lists every child and their trainers, with add/remove controls for each association,
+guarded by `PlayerProfilePolicy::manageTrainerAssociations()` (AD-023). A guardian may:
+
+- **Add from existing trainers**: choose a trainer the guardian already has in any other child,
+  reusing `AssociatePlayersWithTrainer` unchanged from Slice B.
+- **Add via manual code**: enter a ShareLink code, which calls `RedeemShareLink::forPlayer()`
+  directly from the Livewire component — the same code path `/join/{code}` uses, now parametrized
+  to accept a trainer id instead of deriving it from the session.
+- **Remove**: soft-delete the `TrainerPlayer` row, preserving history (FR-009). The unique index
+  `(trainer_profile_id, player_profile_id, deleted_at)` from Slice B makes re-adding after removal
+  a new row, not a resurrection.
+
+A child with its own login may view the screen but never change it — `manageTrainerAssociations`
+returns false for any child account, even its own profile (AD-023).
+
+### Deliberate deferrals in Slice C
+
+- **"Request more info"** (FR-010 gap): Slice C ships Approve/Deny only. Adding a parent-note-only,
+  non-terminal response is deferred; the `parent_note` column already exists, so the feature is
+  one endpoint away.
+- **Profile photo thumbnailing**: Slice C stores and serves full-size photos only. The
+  `_thumb` naming convention (Decision 5 in the plan) is ready; thumbnail generation is deferred.
+- **N+1 on `/family` query**: one call to load a family's trainers fans out per child rather than
+  preloading the set. Accepted and pinned by `TenancyQueryBudgetTest`; the budget is still met with
+  the fan-out, and restructuring the query would complicate the permission logic.
+
+### Routes and scheduler
+
+Three new routes under the `player` role group:
+
+| Route | Component | Purpose |
+|---|---|---|
+| `GET /family` | `Livewire\Family\FamilyOverview` | Lists the guardian's children and their trainer associations |
+| `GET /family/children/create` | `Livewire\Family\ChildForm` | Form to create a child profile with optional login |
+| `GET /approvals` | `Livewire\Family\PendingApprovals` | Lists pending purchase approvals for all of the guardian's children |
+
+**The scheduler is now a required process** (AD-008). `routes/console.php` registers
+`ExpirePurchaseApprovalsJob` to run every 15 minutes. Without it, pending approvals never expire,
+leaving them in the queue indefinitely. The job applies the same conditional-update guard
+`RespondToPurchaseApproval` uses, so a late run is safe — just delayed.
+
+### Test coverage
+
+Slice C closes the test-generator validation map for all Slices A–C: 329 tests / 939 assertions,
+PHPUnit 12 against MariaDB, PHPStan level 5 clean, Pint clean. Coverage includes:
+
+- End-to-end child profile creation with and without login (invariant integrity tested)
+- Guardian-scoped trainer association add/remove, with re-add after soft delete
+- Child login denial on `/join/{code}` with throttled guardian notification
+- Purchase approval request, guardian approval/denial, and 48-hour expiry with conditional-update
+  idempotency
+- Child-login profile access (read permitted, write denied except own basic fields)
+- Profile photo upload, validation, and signed-route serving (full-size; thumbnailing deferred)
+
+### Security findings closed
+
+The security review found one High risk: a forged `trainer_id` on the child form wrote a
+`trainer_players` row into an arbitrary organisation (cross-tenant write, NFR-010 breach).
+**Fixed**: submitted trainer ids are now intersected against the family's own trainers before
+association. Two regression tests pin the fix:
+`tests/Feature/Family/TrainerAssociationSecurityTest::test_a_forged_trainer_id_is_refused` and
+`::test_association_fails_if_the_trainer_is_not_in_the_family`.
+
+Code review findings closed: the empty-picker field error (now a properly formatted validation
+message), and nine follow-ups all addressed. One false positive was correctly rejected:
+`Illuminate\Notifications\Notification` already uses `SerializesModels`, so no queue payload
+leaks model data.
