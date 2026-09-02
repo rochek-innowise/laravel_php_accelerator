@@ -27,9 +27,10 @@ final class CreateChildProfileTest extends TestCase
     {
         $parent = User::factory()->create();
 
-        $profile = app(CreateChildProfile::class)->handle($parent, $this->data(name: 'Alex Doe'));
+        $profile = app(CreateChildProfile::class)->handle($parent, $this->data(name: 'Alex Doe', gender: 'female'));
 
         $this->assertTrue($profile->fresh()->is_child);
+        $this->assertSame('female', $profile->fresh()->gender);
         $this->assertTrue($profile->isGuardedBy($parent));
         $this->assertSame(1, $profile->guardians()->wherePivot('is_primary', true)->count());
     }
@@ -222,6 +223,7 @@ final class CreateChildProfileTest extends TestCase
     private function data(
         string $name = 'Test Child',
         ?string $birthDate = null,
+        string $gender = 'female',
         array $trainerProfileIds = [],
         bool $confirmDuplicate = false,
         bool $wantsLogin = false,
@@ -232,6 +234,7 @@ final class CreateChildProfileTest extends TestCase
         return new ChildProfileData(
             name: $name,
             birthDate: $birthDate ?? now()->subYears(10)->toDateString(),
+            gender: $gender,
             school: null,
             jerseyNumber: null,
             emergencyContact: null,

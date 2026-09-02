@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Actions\Profile;
 
 use App\Exceptions\ProfilePhotoException;
+use App\Models\PlayerProfile;
 use App\Models\User;
 use Illuminate\Contracts\Filesystem\Filesystem;
 use Illuminate\Support\Facades\Storage;
@@ -15,54 +16,65 @@ use RuntimeException;
 use Throwable;
 
 /**
- * FR-016: stores an already-validated upload and its thumbnail, then drops the previous pair.
+ * FR-016, and (with `$withThumbnail: false`) Slice C's FR-008 child photo — the same disk,
+ * validation order and forceFill discipline for both, so there is exactly one place that knows how
+ * a profile photo is written.
  *
- * Order matters. The original is written first, the thumbnail derived from it, and only then does
- * the old photo go — so a failure at any step leaves the user with the photo they already had
- * rather than none, and the half-written new pair is removed on the way out.
+ * Order matters. The original is written first, the thumbnail (when asked for) derived from it,
+ * and only then does the old photo go — so a failure at any step leaves the owner with the photo
+ * they already had rather than none, and the half-written new pair is removed on the way out.
+ *
+ * `$owner` is `User` (thumbnailed) or `PlayerProfile` (Slice C Decision 5: full-size only, no
+ * thumbnail pass) — both carry a plain `photo_path` column and nothing else about either model
+ * matters here.
  */
 final class StoreProfilePhoto
 {
     public function __construct(protected ImageManager $imageManager) {}
 
-    public function handle(User $user, TemporaryUploadedFile $upload): string
+    public function handle(User|PlayerProfile $owner, TemporaryUploadedFile $upload, bool $withThumbnail = true): string
     {
         $disk = $this->disk();
-        $previous = $user->photo_path;
+        $previous = $owner->photo_path;
 
         $extension = $this->extensionFor($upload->getMimeType());
-        $path = config('media.profile_photos.directory').'/'.$user->getKey().'/'.Str::uuid()->toString().'.'.$extension;
+        $path = config('media.profile_photos.directory').'/'.$owner->getKey().'/'.Str::uuid()->toString().'.'.$extension;
 
         $disk->put($path, $upload->get());
 
         // The MIME check cannot be the only gate: a file can sniff as an image and still fail to
-        // decode. Without this the user would get a 500 and the disk would keep the upload.
+        // decode. Without this the owner would get a 500 and the disk would keep the upload —
+        // exercised either by producing the thumbnail, or (with none to produce) by decoding alone.
         try {
-            $this->writeThumbnail($disk, $path);
+            if ($withThumbnail) {
+                $this->writeThumbnail($disk, $path);
+            } else {
+                $this->imageManager->decodeBinary((string) $disk->get($path));
+            }
         } catch (Throwable $e) {
-            $disk->delete([$path, User::thumbnailPathFor($path)]);
+            $disk->delete($withThumbnail ? [$path, User::thumbnailPathFor($path)] : [$path]);
 
             throw new ProfilePhotoException('The photo could not be processed.', previous: $e);
         }
 
-        $user->forceFill(['photo_path' => $path])->save();
+        $owner->forceFill(['photo_path' => $path])->save();
 
         if (! empty($previous)) {
-            $disk->delete([$previous, User::thumbnailPathFor($previous)]);
+            $disk->delete($withThumbnail ? [$previous, User::thumbnailPathFor($previous)] : [$previous]);
         }
 
         return $path;
     }
 
-    public function remove(User $user): void
+    public function remove(User|PlayerProfile $owner, bool $withThumbnail = true): void
     {
-        if (empty($user->photo_path)) {
+        if (empty($owner->photo_path)) {
             return;
         }
 
-        $this->disk()->delete([$user->photo_path, User::thumbnailPathFor($user->photo_path)]);
+        $this->disk()->delete($withThumbnail ? [$owner->photo_path, User::thumbnailPathFor($owner->photo_path)] : [$owner->photo_path]);
 
-        $user->forceFill(['photo_path' => null])->save();
+        $owner->forceFill(['photo_path' => null])->save();
     }
 
     protected function writeThumbnail(Filesystem $disk, string $path): void

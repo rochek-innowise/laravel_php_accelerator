@@ -6,15 +6,20 @@ namespace App\Livewire\Family;
 
 use App\Actions\Family\ChildProfileData;
 use App\Actions\Family\CreateChildProfile;
+use App\Actions\Profile\StoreProfilePhoto;
 use App\Enums\TrainerPlayerStatus;
 use App\Exceptions\DuplicateChildProfileException;
+use App\Exceptions\ProfilePhotoException;
 use App\Models\PlayerProfile;
 use App\Models\TrainerProfile;
 use App\Models\User;
 use Illuminate\Contracts\View\View;
 use Illuminate\Support\Collection;
+use Illuminate\Validation\Rule;
 use Illuminate\Validation\ValidationException;
 use Livewire\Component;
+use Livewire\Features\SupportFileUploads\TemporaryUploadedFile;
+use Livewire\WithFileUploads;
 
 /**
  * FR-008. The trainer picker renders as a yes/no toggle for a single-trainer family and a
@@ -23,15 +28,30 @@ use Livewire\Component;
  */
 final class ChildForm extends Component
 {
+    use WithFileUploads;
+
+    /**
+     * FR-008 requires gender at creation but does not enumerate values anywhere in the
+     * requirements or brainstorming; kept to the same three values `PlayerProfileFactory` already
+     * uses elsewhere in this codebase rather than inventing a longer list unprompted.
+     *
+     * @var list<string>
+     */
+    private const GENDERS = ['male', 'female', 'other'];
+
     public string $name = '';
 
     public string $birth_date = '';
+
+    public string $gender = '';
 
     public ?string $school = null;
 
     public ?string $jersey_number = null;
 
     public ?string $emergency_contact = null;
+
+    public ?TemporaryUploadedFile $photo = null;
 
     public bool $singleTrainerJoins = false;
 
@@ -56,11 +76,21 @@ final class ChildForm extends Component
         $this->authorize('create', PlayerProfile::class);
     }
 
-    public function save(CreateChildProfile $create): void
+    /**
+     * Validated the moment it lands, before anything reaches the permanent disk — the same
+     * "validate on arrival" discipline `ProfileForm::updatedPhoto()` already applies.
+     */
+    public function updatedPhoto(): void
+    {
+        $this->validateOnly('photo', $this->photoRules());
+    }
+
+    public function save(CreateChildProfile $create, StoreProfilePhoto $storePhoto): void
     {
         $this->validate([
             'name' => ['required', 'string', 'max:255'],
             'birth_date' => ['required', 'date', 'before:today'],
+            'gender' => ['required', 'string', Rule::in(self::GENDERS)],
             'school' => ['nullable', 'string', 'max:255'],
             'jersey_number' => ['nullable', 'string', 'max:10'],
             'emergency_contact' => ['nullable', 'string', 'max:65535'],
@@ -73,9 +103,14 @@ final class ChildForm extends Component
             ]);
         }
 
+        if ($this->photo !== null) {
+            $this->validate($this->photoRules());
+        }
+
         $data = new ChildProfileData(
             name: $this->name,
             birthDate: $this->birth_date,
+            gender: $this->gender,
             school: $this->school !== null && $this->school !== '' ? $this->school : null,
             jerseyNumber: $this->jersey_number !== null && $this->jersey_number !== '' ? $this->jersey_number : null,
             emergencyContact: $this->emergency_contact !== null && $this->emergency_contact !== '' ? $this->emergency_contact : null,
@@ -93,6 +128,21 @@ final class ChildForm extends Component
             $this->duplicateDetected = true;
 
             throw ValidationException::withMessages(['name' => $e->getMessage()]);
+        }
+
+        // The photo needs the profile's own id for its storage path, so it can only be written
+        // after CreateChildProfile has committed — a failure here leaves the child created without
+        // a photo rather than losing the whole submission (the same tolerance ProfileForm::save()
+        // already has for its own photo step).
+        if ($this->photo !== null) {
+            try {
+                $storePhoto->handle($profile, $this->photo, withThumbnail: false);
+            } catch (ProfilePhotoException $e) {
+                session()->flash('status', $profile->name.' was added, but the photo could not be saved: '.$e->getMessage());
+                $this->redirectRoute('family.index', navigate: true);
+
+                return;
+            }
         }
 
         session()->flash('status', $profile->name.' has been added to your family.');
@@ -135,6 +185,31 @@ final class ChildForm extends Component
             ->values();
     }
 
+    /** @return list<string> */
+    public function genderOptions(): array
+    {
+        return self::GENDERS;
+    }
+
+    /**
+     * `mimetypes` sniffs the file's actual content through finfo, unlike `mimes`, which trusts the
+     * extension — a renamed script would otherwise pass. Optional: FR-008 lists photo among the
+     * "optional" fields.
+     *
+     * @return array<string, array<int, string>>
+     */
+    protected function photoRules(): array
+    {
+        return [
+            'photo' => [
+                'nullable',
+                'image',
+                'mimetypes:'.implode(',', config('media.profile_photos.mime_types')),
+                'max:'.config('media.profile_photos.max_kilobytes'),
+            ],
+        ];
+    }
+
     protected function actor(): User
     {
         $user = auth()->user();
@@ -148,6 +223,7 @@ final class ChildForm extends Component
     {
         return view('livewire.family.child-form', [
             'availableTrainers' => $this->availableTrainers(),
+            'genderOptions' => $this->genderOptions(),
         ]);
     }
 }

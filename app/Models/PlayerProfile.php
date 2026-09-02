@@ -13,6 +13,7 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\BelongsToMany;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Support\Carbon;
+use Illuminate\Support\Facades\URL;
 
 // Identity, never tenant-scoped (AD-001): a trainer's roster is a query over trainer_players.
 // `user_id` is not mass-assignable: a request-supplied login would let one account claim
@@ -23,6 +24,7 @@ use Illuminate\Support\Carbon;
  * @property Carbon|null $birth_date
  * @property bool $is_child
  * @property bool $token_spend_requires_approval
+ * @property string|null $photo_path
  */
 // `owner_user_id` is gone: guardianship lives in player_guardians so a child can have both
 // parents. A self profile has no guardian row — it is reached through `user_id`.
@@ -104,5 +106,22 @@ class PlayerProfile extends Model
     public function purchaseApprovals(): HasMany
     {
         return $this->hasMany(PurchaseApproval::class);
+    }
+
+    /**
+     * Minted per render and short-lived: the URL is never stored, cached or emailed (AD-020).
+     * Full-size only (Slice C Decision 5) — there is no thumbnail variant for a child photo.
+     */
+    public function photoUrl(): ?string
+    {
+        if (empty($this->photo_path)) {
+            return null;
+        }
+
+        return URL::temporarySignedRoute(
+            'players.photo',
+            now()->addMinutes((int) config('media.profile_photos.url_ttl_minutes')),
+            ['player' => $this->getKey()],
+        );
     }
 }

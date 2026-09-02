@@ -64,6 +64,56 @@ final class TenancyQueryBudgetTest extends TestCase
         $this->assertLessThanOrEqual(6, count($queries), 'Total tenancy bookkeeping for one page load.');
     }
 
+    /**
+     * `/family` (Overview) is not the same shape as the dashboard budget above: its cost is
+     * expected to scale with family size (one association lookup per member), so this pins the
+     * thing that actually regressed once — a per-member lookup running an extra time or two on
+     * top of that, the multiplicative blow-up a missing per-request memo causes — not a constant
+     * total. Confirmed by temporarily removing the memo: this fixture's per-profile lookup count
+     * went from 2 (one per member) to 10, and the total from 11 to 27.
+     */
+    #[Test]
+    public function a_family_page_load_resolves_each_members_associations_once(): void
+    {
+        $parent = User::factory()->create();
+        $self = PlayerProfile::factory()->selfProfile($parent)->create();
+        $child = PlayerProfile::factory()->child()->guardedBy($parent)->create();
+
+        foreach ([$self, $child] as $profile) {
+            foreach (range(1, 2) as $ignored) {
+                TrainerPlayer::factory()->create([
+                    'trainer_profile_id' => TrainerProfile::factory()->create()->id,
+                    'player_profile_id' => $profile->id,
+                ]);
+            }
+        }
+
+        $this->actingAs($parent);
+
+        $queries = [];
+        DB::listen(function ($query) use (&$queries): void {
+            $queries[] = $query->sql;
+        });
+
+        $this->get(route('family.index'))->assertOk();
+
+        $perMemberAssociationLookups = $this->countMatching(
+            $queries,
+            '/from `trainer_players` where `trainer_players`\.`player_profile_id` = /'
+        );
+
+        $this->assertSame(
+            2,
+            $perMemberAssociationLookups,
+            'Two family members should cost exactly two association lookups — one each, not a multiple.'
+        );
+        $this->assertLessThanOrEqual(
+            12,
+            count($queries),
+            'Total query cost for this two-member family page load.'
+        );
+    }
+
     /** @param  list<string>  $queries */
     protected function countMatching(array $queries, string $pattern): int
     {

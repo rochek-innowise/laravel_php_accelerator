@@ -13,6 +13,16 @@
                 <x-slot:error>@error('birth_date'){{ $message }}@enderror</x-slot:error>
             </x-ui.field>
 
+            <x-ui.field label="Gender" for="gender">
+                <select id="gender" wire:model="gender" class="control" required>
+                    <option value="">Select one</option>
+                    @foreach ($genderOptions as $option)
+                        <option value="{{ $option }}">{{ ucfirst($option) }}</option>
+                    @endforeach
+                </select>
+                <x-slot:error>@error('gender'){{ $message }}@enderror</x-slot:error>
+            </x-ui.field>
+
             @if ($duplicateDetected)
                 <div class="rounded-(--radius) border border-line bg-paper px-4 py-3 text-sm text-ink">
                     <p>{{ $errors->first('name') }}</p>
@@ -37,6 +47,13 @@
                 <textarea id="emergency_contact" wire:model="emergency_contact" class="control" rows="2"></textarea>
                 <x-slot:error>@error('emergency_contact'){{ $message }}@enderror</x-slot:error>
             </x-ui.field>
+
+            <x-ui.field label="Photo (optional)" for="photo">
+                <input id="photo" type="file" wire:model="photo" class="control" accept="image/*">
+                <x-slot:error>@error('photo'){{ $message }}@enderror</x-slot:error>
+            </x-ui.field>
+
+            <div wire:loading wire:target="photo" class="text-sm text-ink-soft">Uploading…</div>
 
             @if ($availableTrainers->count() === 1)
                 <label class="flex items-center gap-2 text-sm text-ink">

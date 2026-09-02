@@ -39,9 +39,16 @@ Route::middleware(['auth'])->group(function (): void {
 
     // Signed, and the controller re-checks the policy: the signature bounds the link's lifetime,
     // it does not decide who may follow it. Not behind `verified` — the profile screen is not.
-    Route::get('/users/{user}/photo/{variant?}', ProfilePhotoController::class)
+    Route::get('/users/{user}/photo/{variant?}', [ProfilePhotoController::class, 'user'])
         ->middleware('signed')
         ->name('users.photo');
+
+    // FR-008's child photo (Slice C, Decision 5): full-size only, so no `{variant}` segment at
+    // all — the guardian-or-child-login check is the same policy PlayerProfilePolicy::view
+    // already enforces everywhere else a profile is read.
+    Route::get('/players/{player}/photo', [ProfilePhotoController::class, 'player'])
+        ->middleware('signed')
+        ->name('players.photo');
 
     Route::middleware(['verified'])->group(function (): void {
         Route::get('/dashboard', DashboardController::class)->name('dashboard');

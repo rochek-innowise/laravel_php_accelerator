@@ -31,6 +31,18 @@ final class Overview extends Component
     public array $pickerTrainerId = [];
 
     /**
+     * Per-request memo, not a Livewire property: `render()` reads this once directly and again
+     * once per child through `availableTrainersFor()`, which used to re-run the full family query
+     * every time. A plain (non-public) property never dehydrates between requests, so this costs
+     * nothing across page loads — it only collapses the repeats inside a single one. Every mutating
+     * method below clears it before its own `render()` pass, or that pass would show pre-mutation
+     * data from the same request.
+     *
+     * @var Collection<int, TrainerPlayer>|null
+     */
+    private ?Collection $familyAssociationsCache = null;
+
+    /**
      * Every association across the acting user's whole family, tenant-blind by construction: each
      * is reached through `PlayerProfile::trainerAssociations()`, an identity relation, never a raw
      * `TrainerPlayer::query()` (AD-001 / AD-003 — that would be an unreviewed third escape from
@@ -40,11 +52,16 @@ final class Overview extends Component
      */
     protected function familyAssociations(): Collection
     {
-        return $this->actor()->trainableProfiles()
+        return $this->familyAssociationsCache ??= $this->actor()->trainableProfiles()
             ->flatMap(fn (PlayerProfile $profile): Collection => $profile->trainerAssociations()
                 ->with('trainerProfile')
                 ->orderByDesc('connected_at')
                 ->get());
+    }
+
+    protected function resetFamilyAssociationsCache(): void
+    {
+        $this->familyAssociationsCache = null;
     }
 
     /**
@@ -98,6 +115,7 @@ final class Overview extends Component
         }
 
         unset($this->manualCode[$childId]);
+        $this->resetFamilyAssociationsCache();
 
         session()->flash('status', $child->name.' joined the trainer.');
     }
@@ -120,6 +138,7 @@ final class Overview extends Component
         $associate->handle($trainer, $this->actor(), [$child->getKey()]);
 
         unset($this->pickerTrainerId[$childId]);
+        $this->resetFamilyAssociationsCache();
 
         session()->flash('status', $child->name.' joined '.$trainer->business_name.'.');
     }
@@ -133,6 +152,7 @@ final class Overview extends Component
         $this->authorize('delete', $association);
 
         $manage->remove($association, $this->actor());
+        $this->resetFamilyAssociationsCache();
 
         // Deliberately just "removed": FR-009's RSVP-cancellation warning belongs on the confirm
         // prompt before this runs (see the view), not as a claim of fact here — no RSVP model

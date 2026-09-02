@@ -222,4 +222,27 @@ final class OverviewTest extends TestCase
             ->call('addByCode', $child->id)
             ->assertForbidden();
     }
+
+    /**
+     * Pins the per-request memo's correctness, not just its existence: a mutation and the render
+     * that follows it happen on the *same* component instance within one request, so a memo that
+     * is not cleared on mutation would show this exact trainer as still present.
+     */
+    #[Test]
+    public function removing_an_association_is_reflected_immediately_in_the_same_component_instance(): void
+    {
+        $parent = User::factory()->create();
+        $child = PlayerProfile::factory()->child()->guardedBy($parent)->create();
+        $trainer = TrainerProfile::factory()->create(['business_name' => 'Riverside FC']);
+        $association = TrainerPlayer::factory()->create([
+            'trainer_profile_id' => $trainer->id,
+            'player_profile_id' => $child->id,
+        ]);
+
+        Livewire::actingAs($parent)
+            ->test(Overview::class)
+            ->assertSee('Riverside FC')
+            ->call('remove', $association->id)
+            ->assertDontSee('Riverside FC');
+    }
 }

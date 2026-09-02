@@ -41,6 +41,7 @@ final class CreateChildProfile
             $profile = new PlayerProfile([
                 'name' => $data->name,
                 'birth_date' => $data->birthDate,
+                'gender' => $data->gender,
                 'school' => $data->school,
                 'jersey_number' => $data->jerseyNumber,
                 'emergency_contact' => $data->emergencyContact,

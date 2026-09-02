@@ -7,6 +7,8 @@ namespace Tests\Feature\Family;
 use App\Livewire\Family\ChildForm;
 use App\Models\PlayerProfile;
 use App\Models\User;
+use Illuminate\Http\UploadedFile;
+use Illuminate\Support\Facades\Storage;
 use Livewire\Livewire;
 use PHPUnit\Framework\Attributes\Test;
 use Tests\TestCase;
@@ -22,6 +24,7 @@ final class ChildFormTest extends TestCase
             ->test(ChildForm::class)
             ->set('name', 'Sam Rivera')
             ->set('birth_date', now()->subYears(8)->toDateString())
+            ->set('gender', 'female')
             ->call('save')
             ->assertHasNoErrors()
             ->assertRedirect(route('family.index'));
@@ -29,6 +32,23 @@ final class ChildFormTest extends TestCase
         $profile = PlayerProfile::where('name', 'Sam Rivera')->firstOrFail();
         $this->assertTrue($profile->is_child);
         $this->assertTrue($profile->isGuardedBy($parent));
+        $this->assertSame('female', $profile->gender);
+    }
+
+    /** FR-008: gender is required, not merely offered. */
+    #[Test]
+    public function a_submission_without_gender_is_rejected(): void
+    {
+        $parent = User::factory()->create();
+
+        Livewire::actingAs($parent)
+            ->test(ChildForm::class)
+            ->set('name', 'No Gender')
+            ->set('birth_date', now()->subYears(8)->toDateString())
+            ->call('save')
+            ->assertHasErrors('gender');
+
+        $this->assertDatabaseMissing('player_profiles', ['name' => 'No Gender']);
     }
 
     #[Test]
@@ -40,6 +60,7 @@ final class ChildFormTest extends TestCase
             ->test(ChildForm::class)
             ->set('name', 'Too Young')
             ->set('birth_date', now()->subMonths(2)->toDateString())
+            ->set('gender', 'male')
             ->call('save')
             ->assertHasErrors('birth_date');
 
@@ -56,6 +77,7 @@ final class ChildFormTest extends TestCase
             ->test(ChildForm::class)
             ->set('name', 'Alex Doe')
             ->set('birth_date', '2015-06-01')
+            ->set('gender', 'male')
             ->call('save')
             ->assertHasErrors('name')
             ->assertSet('duplicateDetected', true);
@@ -80,6 +102,7 @@ final class ChildFormTest extends TestCase
             ->test(ChildForm::class)
             ->set('name', 'Casey Lane')
             ->set('birth_date', now()->subYears(9)->toDateString())
+            ->set('gender', 'other')
             ->set('wantsLogin', true)
             ->set('email', 'casey@example.test')
             ->set('password', 'correct-horse-battery-staple')
@@ -92,6 +115,47 @@ final class ChildFormTest extends TestCase
         $this->assertNotNull($profile->user_id);
         $this->assertTrue($profile->user->is_child_account);
         $this->assertSame('casey@example.test', $profile->user->email);
+    }
+
+    #[Test]
+    public function an_uploaded_photo_is_stored_full_size_with_no_thumbnail(): void
+    {
+        Storage::fake('local');
+        $parent = User::factory()->create();
+
+        Livewire::actingAs($parent)
+            ->test(ChildForm::class)
+            ->set('name', 'Photo Kid')
+            ->set('birth_date', now()->subYears(7)->toDateString())
+            ->set('gender', 'male')
+            ->set('photo', UploadedFile::fake()->image('kid.jpg', 400, 400))
+            ->call('save')
+            ->assertHasNoErrors();
+
+        $profile = PlayerProfile::where('name', 'Photo Kid')->firstOrFail();
+
+        $this->assertNotNull($profile->photo_path);
+        Storage::disk('local')->assertExists($profile->photo_path);
+        // No thumbnail variant at all for a child photo (Decision 5) — only the original path.
+        Storage::disk('local')->assertMissing(User::thumbnailPathFor($profile->photo_path));
+    }
+
+    #[Test]
+    public function a_non_image_photo_upload_is_rejected(): void
+    {
+        Storage::fake('local');
+        $parent = User::factory()->create();
+
+        Livewire::actingAs($parent)
+            ->test(ChildForm::class)
+            ->set('name', 'Bad Photo Kid')
+            ->set('birth_date', now()->subYears(7)->toDateString())
+            ->set('gender', 'male')
+            ->set('photo', UploadedFile::fake()->create('contract.pdf', 20, 'application/pdf'))
+            ->call('save')
+            ->assertHasErrors(['photo']);
+
+        $this->assertDatabaseMissing('player_profiles', ['name' => 'Bad Photo Kid']);
     }
 
     #[Test]
