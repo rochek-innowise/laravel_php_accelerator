@@ -1,0 +1,185 @@
+{
+  "created_at": "2026-09-02T22:06:55.230554+00:00",
+  "escalation_reason": null,
+  "excluded": [
+    {
+      "path": "project-brain/control/handoffs/5ce3073d-1ffd-4441-8c39-200386fe6895.md",
+      "reason": "lifecycle"
+    },
+    {
+      "path": "specs/architect-architecture.md",
+      "reason": "layer-limit"
+    },
+    {
+      "path": "specs/MANIFEST.md",
+      "reason": "layer-limit"
+    },
+    {
+      "path": "memory-bank/chunks/MEM-20260902-80e286ae-factories-cannot-catch-mass-assignment-regressions.md",
+      "reason": "layer-limit"
+    },
+    {
+      "path": "memory-bank/chunks/MEM-20260902-819a39fc-purchase-executor-in-transaction-placement-decision.md",
+      "reason": "layer-limit"
+    },
+    {
+      "path": "memory-bank/chunks/MEM-20260902-6bede1f2-tests-can-pass-while-pinning-nothing.md",
+      "reason": "layer-limit"
+    },
+    {
+      "path": "tasks/TASK-001/brainstorming-design.md",
+      "reason": "layer-limit"
+    },
+    {
+      "path": "project-brain/dynamic/tasks/5ce3073d-1ffd-4441-8c39-200386fe6895.md",
+      "reason": "layer-limit"
+    },
+    {
+      "path": "memory-bank/chunks/MEM-20260902-09f971b9-unscoped-identity-models-and-forged-id-guards.md",
+      "reason": "layer-limit"
+    },
+    {
+      "path": "memory-bank/chunks/MEM-20260902-744e2739-laravel-notifications-already-use-serializesmodels.md",
+      "reason": "layer-limit"
+    },
+    {
+      "path": "tasks/TASK-001/writing-plans-slice-b-plan.md",
+      "reason": "layer-limit"
+    },
+    {
+      "path": "tasks/TASK-001/writing-plans-plan.md",
+      "reason": "layer-limit"
+    },
+    {
+      "path": ".claude/skills/project-brain/SKILL.md",
+      "reason": "layer-limit"
+    },
+    {
+      "path": ".claude/skills/reflect/SKILL.md",
+      "reason": "layer-limit"
+    },
+    {
+      "path": ".claude/skills/coder/SKILL.md",
+      "reason": "layer-limit"
+    },
+    {
+      "path": "memory-bank/chunks/MEM-20260902-063160c0-is-child-account-invariant-promised-by-the-design-was-never-asserted.md",
+      "reason": "layer-limit"
+    },
+    {
+      "path": ".claude/skills/verify/SKILL.md",
+      "reason": "layer-limit"
+    },
+    {
+      "path": ".claude/skills/architecture-implementer/SKILL.md",
+      "reason": "layer-limit"
+    },
+    {
+      "path": ".claude/skills/review-pr/SKILL.md",
+      "reason": "layer-limit"
+    },
+    {
+      "path": "project-brain/dynamic/tasks/ff9cb3b1-80dc-4860-a94c-b3375a3fd45a.md",
+      "reason": "layer-limit"
+    }
+  ],
+  "filters": {
+    "active_only": true,
+    "authority": [
+      "observed",
+      "verified"
+    ],
+    "freshness": true,
+    "owners": [
+      "*"
+    ],
+    "privacy": [
+      "public",
+      "team"
+    ]
+  },
+  "gate": {
+    "decision": "retrieve",
+    "mode": "shadow",
+    "reason": "new-selection",
+    "signals": {
+      "distinctive_matches": 0,
+      "informative_terms": 6,
+      "no_match": [
+        "episodic"
+      ],
+      "query_unchanged_from_previous_turn": false,
+      "selection_identical_to_previous_turn": false,
+      "top_score": 13.366851
+    }
+  },
+  "id": "98028417-5c5a-4e24-8fb0-0c12c59a4297",
+  "phase_seconds": {
+    "index": 0.014029,
+    "retrieval": 0.018765,
+    "stat": 0.016063
+  },
+  "provider": "sqlite-fts5",
+  "query": "Slice C family approvals DoD verification",
+  "query_source": "explicit",
+  "schema_version": 2,
+  "selected": [
+    {
+      "category": "policy",
+      "estimated_tokens": 63,
+      "match": "covered",
+      "path": "AGENTS.md",
+      "rank": 10,
+      "score": 10.259244,
+      "source_hash": "5337bc8075cf6e69475fdbb37f7c9f253169ab75a5452ae55f904559b7684f7d"
+    },
+    {
+      "category": "policy",
+      "estimated_tokens": 63,
+      "match": "covered",
+      "path": ".claude/skills/memory-bank/SKILL.md",
+      "rank": 15,
+      "score": 6.937152,
+      "source_hash": "a89aa96ec7437bcbdd9e7d32d159448ce5af47ab014d72b96d4c84e229fbfc71"
+    },
+    {
+      "category": "evidence",
+      "estimated_tokens": 77,
+      "match": "covered",
+      "path": "tasks/TASK-001/writing-plans-slice-c-plan.md",
+      "rank": 1,
+      "score": 13.366851,
+      "source_hash": "e076e1f73e4a63913aa628da64680b9e87439c5c8d1e1ee24b66c13986309c1e"
+    },
+    {
+      "category": "evidence",
+      "estimated_tokens": 74,
+      "match": "covered",
+      "path": "tasks/TASK-001/requirements-analyst-requirements.md",
+      "rank": 2,
+      "score": 12.687845,
+      "source_hash": "c424ca6c029475476af1f759071de15df5e39b72032aaf91cef4613926eec69b"
+    },
+    {
+      "category": "evidence",
+      "estimated_tokens": 57,
+      "match": "covered",
+      "path": "tasks/TASK-001/test-generator-validation.md",
+      "rank": 4,
+      "score": 11.791749,
+      "source_hash": "de818e9722aa9435a771d20fb163b54c7cf5c0bec338da1e3ce58ed5551a811e"
+    }
+  ],
+  "task_id": "5ce3073d-1ffd-4441-8c39-200386fe6895",
+  "task_revision": 8,
+  "token_estimates": {
+    "durable": 0,
+    "dynamic": 0,
+    "evidence": 208,
+    "handoff": 0,
+    "hard": 12000,
+    "policy": 126,
+    "target": 8000,
+    "total": 334
+  }
+}

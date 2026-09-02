@@ -84,6 +84,24 @@ Ruling: **disable `Features::registration()`** in `config/fortify.php` and own t
 
 Login stays entirely Fortify. A custom `Fortify::authenticateThrough()` pipeline step rejects inactive and deleted accounts with the exact FR-017 copy, positioned **behind** the throttle step so the message cannot become an unthrottled account-enumeration oracle.
 
+**Amended in Slice C — there are now two surfaces, not one.** FR-008's child-login toggle on
+`/family/children/create` also calls `CreateNewUser`, because FR-011 requires a child to be able to
+log in and no requirement describes any other way for that login to come into existence. The "one
+entry point" ruling above no longer holds literally, and the second surface is only defensible
+because it carries the same protections the first one does:
+
+- It is reachable only by an authenticated non-child `Player`, so it is not an anonymous surface.
+- It carries its own rate limit, keyed per guardian **and** address, because an authenticated
+  guardian could otherwise mint unlimited accounts on arbitrary addresses — which would also make
+  the uniqueness failure the account-enumeration oracle this AD exists to prevent, and would let
+  someone squat an address so its owner could never register through `/join/{code}`.
+- Refusals are audited, per AD-018.
+- The login it creates is marked verified at creation (see AD-023), since it fires no `Registered`
+  event and FR-011 gives a child no way to verify an address they may not control.
+
+Anything that adds a **third** surface should be treated as a design change requiring its own
+decision, not as precedent set by this one.
+
 ### AD-005 — Authorization is an enum plus Policies; no permissions package
 
 Four compile-time roles (BR-002) with no runtime role editing anywhere in scope. `spatie/laravel-permission` would add three tables, a cache layer and a second source of truth while still not expressing the two rules that matter — tenant membership and the child deny list — because both are contextual rather than role-static.
