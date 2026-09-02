@@ -103,6 +103,21 @@ return [
 
     /*
     |--------------------------------------------------------------------------
+    | Email Verification
+    |--------------------------------------------------------------------------
+    |
+    | The expiry time is the number of minutes that a generated email
+    | verification link will be considered valid (FR-003). Without this
+    | section VerifyEmail falls back to its own 60-minute default.
+    |
+    */
+
+    'verification' => [
+        'expire' => 1440,
+    ],
+
+    /*
+    |--------------------------------------------------------------------------
     | Password Confirmation Timeout
     |--------------------------------------------------------------------------
     |

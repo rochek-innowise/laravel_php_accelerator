@@ -8,6 +8,7 @@ use App\Enums\Role;
 use App\Enums\UserStatus;
 use App\Livewire\Admin\UsersTable;
 use App\Models\User;
+use Illuminate\Support\Facades\DB;
 use Livewire\Livewire;
 use Tests\TestCase;
 
@@ -35,7 +36,7 @@ final class UsersDirectoryTest extends TestCase
     public function test_the_search_matches_name_and_email(): void
     {
         $admin = User::factory()->superAdmin()->create();
-        $match = User::factory()->create(['first_name' => 'Zinaida', 'email' => 'zin@example.test']);
+        User::factory()->create(['first_name' => 'Zinaida', 'email' => 'zin@example.test']);
         $other = User::factory()->create(['first_name' => 'Bogdan', 'email' => 'bog@example.test']);
 
         Livewire::actingAs($admin)
@@ -113,5 +114,27 @@ final class UsersDirectoryTest extends TestCase
         Livewire::actingAs($admin)
             ->test(UsersTable::class)
             ->assertViewHas('users', fn ($users): bool => $users->count() === 25);
+    }
+
+    /**
+     * NFR-002: a page of the directory must cost a constant number of queries, not one that grows
+     * with the table. The component issues exactly one today — the paginated `simplePaginate`
+     * select, which fetches only the page plus one lookahead row rather than a separate COUNT.
+     * The bound is 2, one query of headroom, so a genuine regression (e.g. an eager-loaded
+     * relation turning lazy) still fails the test instead of being silently absorbed.
+     */
+    public function test_rendering_the_directory_issues_a_bounded_number_of_queries(): void
+    {
+        $admin = User::factory()->superAdmin()->create();
+        User::factory()->count(300)->create();
+
+        $queryCount = 0;
+        DB::listen(function () use (&$queryCount): void {
+            $queryCount++;
+        });
+
+        Livewire::actingAs($admin)->test(UsersTable::class);
+
+        $this->assertLessThanOrEqual(2, $queryCount);
     }
 }

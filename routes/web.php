@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 use App\Http\Controllers\DashboardController;
 use App\Livewire\Admin\CreateTrainerForm;
+use App\Livewire\Admin\EditUserForm;
 use App\Livewire\Admin\UsersTable;
 use App\Livewire\ProfileForm;
 use Illuminate\Support\Facades\Route;
@@ -30,6 +31,7 @@ Route::middleware(['auth'])->group(function (): void {
         Route::prefix('admin')->name('admin.')->middleware('role:super_admin')->group(function (): void {
             Route::get('/users', UsersTable::class)->name('users.index');
             Route::get('/users/create', CreateTrainerForm::class)->name('users.create');
+            Route::get('/users/{user}/edit', EditUserForm::class)->name('users.edit');
         });
     });
 });

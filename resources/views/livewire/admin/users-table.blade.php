@@ -43,6 +43,7 @@
                     <td>{{ $user->role->label() }}</td>
                     <td>{{ ucfirst($user->status->value) }}</td>
                     <td>
+                        <a href="{{ route('admin.users.edit', $user) }}">Edit</a>
                         {{-- Slice D: impersonate, deactivate, delete. --}}
                         <button type="button" disabled>Impersonate</button>
                         <button type="button" disabled>Deactivate</button>
