@@ -46,7 +46,7 @@ final class EditUserForm extends Component
             'phone' => $this->phone,
         ]);
 
-        session()->flash('status', 'Profile updated.');
+        session()->flash('status', 'Profile saved.');
 
         $this->redirectRoute('admin.users.index', navigate: true);
     }

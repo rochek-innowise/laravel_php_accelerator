@@ -134,7 +134,9 @@ final class ProfileForm extends Component
 
         $this->photo = null;
 
-        session()->flash('status', 'Photo removed.');
+        // Own key, not `status`: the layout renders that one, and an in-place save would show twice.
+        // now(), not flash(): Livewire re-renders only this component, so it must not outlive this request.
+        session()->now('profile-status', 'Photo removed.');
     }
 
     public function save(UpdateUserProfileInformation $updateProfileInformation, StoreProfilePhoto $storeProfilePhoto): void
@@ -181,7 +183,7 @@ final class ProfileForm extends Component
             $trainer->update($this->validate($this->trainerRules()));
         }
 
-        session()->flash('status', 'Profile updated.');
+        session()->now('profile-status', 'Profile saved.');
     }
 
     /**

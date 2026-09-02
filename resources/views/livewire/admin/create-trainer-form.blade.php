@@ -1,27 +1,34 @@
 <div>
-    <h1>Create trainer</h1>
+    <x-ui.page-head eyebrow="Admin" title="Create trainer" />
 
-    <form wire:submit="save">
-        <label for="businessName">Business name</label>
-        <input id="businessName" type="text" wire:model="businessName" required autofocus>
-        @error('businessName') <p role="alert">{{ $message }}</p> @enderror
+    <x-ui.card class="mt-6 max-w-[32rem]">
+        <form wire:submit="save" class="flex flex-col gap-4">
+            <x-ui.field label="Business name" for="businessName">
+                <input id="businessName" type="text" wire:model="businessName" required autofocus class="control">
+            </x-ui.field>
+            @error('businessName') <p role="alert" class="text-sm text-foul">{{ $message }}</p> @enderror
 
-        <label for="firstName">First name</label>
-        <input id="firstName" type="text" wire:model="firstName" required>
-        @error('firstName') <p role="alert">{{ $message }}</p> @enderror
+            <x-ui.field label="First name" for="firstName">
+                <input id="firstName" type="text" wire:model="firstName" required class="control">
+            </x-ui.field>
+            @error('firstName') <p role="alert" class="text-sm text-foul">{{ $message }}</p> @enderror
 
-        <label for="lastName">Last name</label>
-        <input id="lastName" type="text" wire:model="lastName" required>
-        @error('lastName') <p role="alert">{{ $message }}</p> @enderror
+            <x-ui.field label="Last name" for="lastName">
+                <input id="lastName" type="text" wire:model="lastName" required class="control">
+            </x-ui.field>
+            @error('lastName') <p role="alert" class="text-sm text-foul">{{ $message }}</p> @enderror
 
-        <label for="email">Email</label>
-        <input id="email" type="email" wire:model="email" required>
-        @error('email') <p role="alert">{{ $message }}</p> @enderror
+            <x-ui.field label="Email" for="email">
+                <input id="email" type="email" wire:model="email" required class="control">
+            </x-ui.field>
+            @error('email') <p role="alert" class="text-sm text-foul">{{ $message }}</p> @enderror
 
-        <label for="phone">Phone</label>
-        <input id="phone" type="text" wire:model="phone" required>
-        @error('phone') <p role="alert">{{ $message }}</p> @enderror
+            <x-ui.field label="Phone" for="phone">
+                <input id="phone" type="text" wire:model="phone" required class="control">
+            </x-ui.field>
+            @error('phone') <p role="alert" class="text-sm text-foul">{{ $message }}</p> @enderror
 
-        <button type="submit">Create and send invitation</button>
-    </form>
+            <button type="submit" class="btn self-start">Create and send invitation</button>
+        </form>
+    </x-ui.card>
 </div>
