@@ -7,6 +7,7 @@ namespace App\Providers;
 use App\Listeners\AuditAuthenticationEvents;
 use App\Models\User;
 use App\Support\Authorization\ChildAbilities;
+use App\Support\Tenancy\TrainerContext;
 use Illuminate\Auth\Events\Failed;
 use Illuminate\Auth\Events\Login;
 use Illuminate\Auth\Events\Logout;
@@ -32,6 +33,12 @@ class AppServiceProvider extends ServiceProvider
         // GD rather than Imagick: both are available in the container, and profile photos need
         // nothing Imagick offers beyond it.
         $this->app->singleton(ImageManager::class, fn (): ImageManager => new ImageManager(new Driver));
+
+        // One tenant per request/job, and `scoped` rather than `singleton` for two reasons: the
+        // context now caches the resolved organisation set, and on a persistent runtime a guest
+        // request reusing a worker would otherwise inherit the previous user's tenant — the
+        // middleware only ever *sets* a context, it never clears one.
+        $this->app->scoped(TrainerContext::class);
     }
 
     /**
@@ -57,6 +64,11 @@ class AppServiceProvider extends ServiceProvider
 
             return null;
         });
+
+        // FR-007: joining an organisation is an ability rather than a policy method, because the
+        // subject is the *link*, not a model the actor owns. A child login is refused by the deny
+        // list above before this ever runs — one rule, one place (FR-011).
+        Gate::define('trainer.associate', fn (User $user): bool => ! $user->is_child_account);
 
         // Super Admin bypasses policies, but never while impersonating — the acting identity is
         // the target, and an admin id leaking into the gate would be a privilege hole (AD-005).
