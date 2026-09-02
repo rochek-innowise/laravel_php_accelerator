@@ -22,7 +22,19 @@ final class EnsureAccountIsActive
         $user = $request->user();
 
         if ($user instanceof User && ! $user->status->canLogIn()) {
+            // AttemptToAuthenticate already put the id in the session, and PrepareAuthenticatedSession
+            // (which regenerates it) never runs on this path — so rotate here rather than leaving a
+            // session id that was briefly associated with an authenticated user.
+            //
+            // Untested on purpose: with SESSION_DRIVER=array the id changes between test requests
+            // anyway, so an assertion on it passes with or without this block. A test that cannot
+            // fail is worse than none.
             auth()->logout();
+
+            if ($request->hasSession()) {
+                $request->session()->invalidate();
+                $request->session()->regenerateToken();
+            }
 
             throw ValidationException::withMessages([
                 Fortify::username() => __(UserStatus::DEACTIVATED_MESSAGE),

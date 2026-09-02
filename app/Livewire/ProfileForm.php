@@ -5,7 +5,6 @@ declare(strict_types=1);
 namespace App\Livewire;
 
 use App\Actions\Fortify\UpdateUserProfileInformation;
-use App\Actions\Profile\UpdateRoleSpecificProfile;
 use App\Models\PlayerProfile;
 use App\Models\User;
 use Illuminate\Contracts\View\View;
@@ -107,7 +106,7 @@ final class ProfileForm extends Component
         }
     }
 
-    public function save(UpdateUserProfileInformation $updateProfileInformation, UpdateRoleSpecificProfile $updateRoleSpecificProfile): void
+    public function save(UpdateUserProfileInformation $updateProfileInformation): void
     {
         $user = auth()->user();
 
@@ -122,19 +121,19 @@ final class ProfileForm extends Component
         if ($player = $user->playerProfile) {
             $this->authorize('update', $player);
 
-            $updateRoleSpecificProfile->handle($player, $this->validate($this->playerRules()));
+            $player->update($this->validate($this->playerRules()));
         }
 
-        $this->saveChildren($user, $updateRoleSpecificProfile);
+        $this->saveChildren($user);
 
         if ($coach = $user->coachProfile) {
             $this->authorize('update', $coach);
-            $updateRoleSpecificProfile->handle($coach, $this->validate($this->coachRules()));
+            $coach->update($this->validate($this->coachRules()));
         }
 
         if ($trainer = $user->trainerProfile) {
             $this->authorize('update', $trainer);
-            $updateRoleSpecificProfile->handle($trainer, $this->validate($this->trainerRules()));
+            $trainer->update($this->validate($this->trainerRules()));
         }
 
         session()->flash('status', 'Profile updated.');
@@ -147,7 +146,7 @@ final class ProfileForm extends Component
      * refused (a 403 would confirm the profile exists); and the policy check behind it refuses
      * anyway if the resolution is ever loosened.
      */
-    protected function saveChildren(User $user, UpdateRoleSpecificProfile $updateRoleSpecificProfile): void
+    protected function saveChildren(User $user): void
     {
         if (empty($this->children)) {
             return;
@@ -163,7 +162,7 @@ final class ProfileForm extends Component
             }
 
             $this->authorize('update', $child);
-            $updateRoleSpecificProfile->handle($child, ['emergency_contact' => $submitted['emergency_contact']]);
+            $child->update(['emergency_contact' => $submitted['emergency_contact']]);
         }
     }
 
