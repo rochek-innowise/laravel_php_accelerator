@@ -1,0 +1,26 @@
+{
+  "conflicts": [],
+  "content": "Resolved as a recorded decision rather than an open gap. Level 6 was 34 errors; three were ours (an untyped Attribute on User::name(), now fixed) and the remaining 31 are all the identical unresolved TComponent generic on Livewire::actingAs()->test() — the package's typing, not this codebase. Level 5 therefore stays, clean and with no baseline, and phpstan.neon records the measurement so the next attempt starts from evidence.",
+  "created_at": "2026-09-02T13:00:20.959371+00:00",
+  "destination_memory_id": "MEM-20260902-152e6db2",
+  "destination_revision": 1,
+  "id": "fb50fb24-dcb2-4d49-bb0d-4d3c332f3b29",
+  "outcome": "promoted",
+  "proposer": "local",
+  "review_mode": "automatic",
+  "reviewed_at": "2026-09-02T13:00:20.961637+00:00",
+  "reviewer": null,
+  "revision": 3,
+  "schema_version": 1,
+  "source_records": [
+    {
+      "id": "152e6db2-07cb-4048-b0ea-3df3c87d3451",
+      "path": "project-brain/dynamic/findings/152e6db2-07cb-4048-b0ea-3df3c87d3451.md",
+      "revision": 4,
+      "type": "finding"
+    }
+  ],
+  "status": "applied",
+  "title": "PHPStan level raised no further than 5",
+  "updated_at": "2026-09-02T13:00:20.973891+00:00"
+}

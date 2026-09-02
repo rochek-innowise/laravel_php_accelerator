@@ -1,0 +1,26 @@
+{
+  "conflicts": [],
+  "content": "Fixed in 61b8c85, then superseded by 7f9a20d which removed the token from the invitation entirely. The database queue driver persists job payloads, so a plaintext token would have sat at rest.",
+  "created_at": "2026-09-02T13:00:21.014472+00:00",
+  "destination_memory_id": "MEM-20260902-2843363c",
+  "destination_revision": 1,
+  "id": "c4c08b9a-bc3c-4576-bb6a-e6792d07e74e",
+  "outcome": "promoted",
+  "proposer": "local",
+  "review_mode": "automatic",
+  "reviewed_at": "2026-09-02T13:00:21.016784+00:00",
+  "reviewer": null,
+  "revision": 3,
+  "schema_version": 1,
+  "source_records": [
+    {
+      "id": "2843363c-84df-462f-8e26-8230aa604756",
+      "path": "project-brain/archive/finding/2843363c-84df-462f-8e26-8230aa604756.md",
+      "revision": 2,
+      "type": "finding"
+    }
+  ],
+  "status": "applied",
+  "title": "Raw password-reset token persisted in the queue payload",
+  "updated_at": "2026-09-02T13:00:21.030048+00:00"
+}

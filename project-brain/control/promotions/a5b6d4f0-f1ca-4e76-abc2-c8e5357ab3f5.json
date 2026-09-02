@@ -1,0 +1,26 @@
+{
+  "conflicts": [],
+  "content": "Resolved. Six of the seven Slice A down() methods were executed and observed succeeding in the reported output; the seventh (player_guardians) was reversed separately once it had been applied to the development database. The defect the review found is fixed too: the drop-name migration restores its column as nullable rather than backfilling empty strings. A clean rebuild with seed data followed and produced the expected scenario, including the two-guardian child.",
+  "created_at": "2026-09-02T13:00:20.995385+00:00",
+  "destination_memory_id": "MEM-20260902-fcadf3e6",
+  "destination_revision": 1,
+  "id": "a5b6d4f0-f1ca-4e76-abc2-c8e5357ab3f5",
+  "outcome": "promoted",
+  "proposer": "local",
+  "review_mode": "automatic",
+  "reviewed_at": "2026-09-02T13:00:20.997580+00:00",
+  "reviewer": null,
+  "revision": 3,
+  "schema_version": 1,
+  "source_records": [
+    {
+      "id": "fcadf3e6-0767-40c9-bed7-8ccaf6bc8721",
+      "path": "project-brain/dynamic/findings/fcadf3e6-0767-40c9-bed7-8ccaf6bc8721.md",
+      "revision": 4,
+      "type": "finding"
+    }
+  ],
+  "status": "applied",
+  "title": "Migration down() methods have never been executed",
+  "updated_at": "2026-09-02T13:00:21.009666+00:00"
+}

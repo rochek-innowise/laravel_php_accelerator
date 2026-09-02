@@ -1,0 +1,26 @@
+{
+  "conflicts": [],
+  "content": "Resolved, and the original premise was wrong. PHPUnit sets an <env> entry only when the variable is absent (no force=\"true\" here), so CI overrides the DDEV values by exporting DB_*. Proved by running the suite with DB_DATABASE=nonexistent_db: it fails, meaning the environment wins. No separate testing env file is needed; phpunit.xml now documents this so the next reader does not re-raise it.",
+  "created_at": "2026-09-02T13:00:20.977715+00:00",
+  "destination_memory_id": "MEM-20260902-21c38622",
+  "destination_revision": 1,
+  "id": "9424c45f-9eb0-402c-9c39-c7f602520579",
+  "outcome": "promoted",
+  "proposer": "local",
+  "review_mode": "automatic",
+  "reviewed_at": "2026-09-02T13:00:20.979866+00:00",
+  "reviewer": null,
+  "revision": 3,
+  "schema_version": 1,
+  "source_records": [
+    {
+      "id": "21c38622-034f-433d-942a-2c19578ef06a",
+      "path": "project-brain/dynamic/findings/21c38622-034f-433d-942a-2c19578ef06a.md",
+      "revision": 4,
+      "type": "finding"
+    }
+  ],
+  "status": "applied",
+  "title": "phpunit.xml hardcodes DDEV database credentials",
+  "updated_at": "2026-09-02T13:00:20.991573+00:00"
+}
