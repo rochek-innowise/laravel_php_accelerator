@@ -23,7 +23,7 @@
   {
     "id": "152e6db2-07cb-4048-b0ea-3df3c87d3451",
     "path": "project-brain/dynamic/findings/152e6db2-07cb-4048-b0ea-3df3c87d3451.md",
-    "revision": 2,
+    "revision": 3,
     "status": "open",
     "type": "finding"
   },
@@ -128,14 +128,14 @@
   {
     "id": "fde0908c-9e73-4b4c-b319-687f0144450e",
     "path": "project-brain/dynamic/findings/fde0908c-9e73-4b4c-b319-687f0144450e.md",
-    "revision": 2,
+    "revision": 3,
     "status": "open",
     "type": "finding"
   },
   {
     "id": "9f844a31-daae-4910-b1d8-aaa6739f6d2b",
     "path": "project-brain/dynamic/tasks/9f844a31-daae-4910-b1d8-aaa6739f6d2b.md",
-    "revision": 2,
+    "revision": 3,
     "status": "active",
     "type": "task"
   },
