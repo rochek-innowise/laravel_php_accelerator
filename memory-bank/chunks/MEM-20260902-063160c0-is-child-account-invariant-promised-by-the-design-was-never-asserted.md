@@ -31,6 +31,39 @@
 }
 ---
 
-# is_child_account invariant promised by the design was never asserted
+# is_child_account Invariant: Now Asserted in Both Seeding and Production
 
-Fixed in 61b8c85: asserted over seeded data, the only place both sides of the denormalization are written together.
+## The Invariant
+
+A `User` with `is_child_account = true` must have exactly one backing `PlayerProfile` with 
+`is_child = true`, and vice versa. The two columns are denormalized for authorization performance 
+(avoiding joins on every request), so they must never disagree.
+
+## Slice A/B: Seeding Only
+
+Slices A and B exercised the invariant only over seeded test data. The assertion happened in 
+`ChildAccountInvariantTest` against rows created by the seeder; no production code path wrote both 
+sides together.
+
+## Slice C: Exercised in Production
+
+`CreateChildProfileAction` now creates the invariant in production when a guardian creates a child 
+profile with its own login:
+
+```php
+// In one transaction:
+$user = CreateNewUser::handle($email, $password);  // Creates User, initially is_child_account = false
+$user->forceFill(['is_child_account' => true])->save();
+$profile = PlayerProfile::create([...]);
+$profile->forceFill(['is_child' => true, 'user_id' => $user->id])->save();
+```
+
+Both fields are written in the same transaction and tested at the action level in 
+`CreateChildProfileTest::test_child_profile_with_login_asserts_the_invariant`. A profile-only child 
+(no login) leaves `user_id` null and is not subject to the invariant.
+
+## Consequences
+
+The invariant is now exercised in production. Regression tests remain required; any code path 
+creating either side must be audited. A future guardian-edit path or a policy change allowing 
+child-account conversions would need the same careful treatment.
