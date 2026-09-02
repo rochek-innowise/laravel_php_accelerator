@@ -1,0 +1,26 @@
+{
+  "conflicts": [],
+  "content": "Fixed in 27c2eea: removed from the allow-list, set via forceFill in the two owning actions. Recorded as AD-016.",
+  "created_at": "2026-09-02T07:21:00.390086+00:00",
+  "destination_memory_id": "MEM-20260902-1fdf8059",
+  "destination_revision": 1,
+  "id": "46c2039d-a126-4095-8959-36f8cb696421",
+  "outcome": "promoted",
+  "proposer": "local",
+  "review_mode": "automatic",
+  "reviewed_at": "2026-09-02T07:21:00.392119+00:00",
+  "reviewer": null,
+  "revision": 3,
+  "schema_version": 1,
+  "source_records": [
+    {
+      "id": "1fdf8059-ecb2-4267-b1d6-090c25c392e9",
+      "path": "project-brain/dynamic/findings/1fdf8059-ecb2-4267-b1d6-090c25c392e9.md",
+      "revision": 2,
+      "type": "finding"
+    }
+  ],
+  "status": "applied",
+  "title": "role, status and is_child_account were mass-assignable on User",
+  "updated_at": "2026-09-02T07:21:00.401804+00:00"
+}

@@ -1,0 +1,26 @@
+{
+  "conflicts": [],
+  "content": "Fixed in 27c2eea: EnsureAccountRemainsActive appended to the web group so Fortify and Livewire routes are covered too. Verified by removing the middleware — 4 of 6 AccountStatusTest cases fail without it. Recorded as AD-015.",
+  "created_at": "2026-09-02T07:21:00.360779+00:00",
+  "destination_memory_id": "MEM-20260902-088fbcdd",
+  "destination_revision": 1,
+  "id": "a91eee5e-b7bf-49da-998e-18b23f631026",
+  "outcome": "promoted",
+  "proposer": "local",
+  "review_mode": "automatic",
+  "reviewed_at": "2026-09-02T07:21:00.363046+00:00",
+  "reviewer": null,
+  "revision": 3,
+  "schema_version": 1,
+  "source_records": [
+    {
+      "id": "088fbcdd-7a3a-48aa-9911-d7a2a4a49a0f",
+      "path": "project-brain/dynamic/findings/088fbcdd-7a3a-48aa-9911-d7a2a4a49a0f.md",
+      "revision": 2,
+      "type": "finding"
+    }
+  ],
+  "status": "applied",
+  "title": "Account status enforced only at login, not per request",
+  "updated_at": "2026-09-02T07:21:00.372189+00:00"
+}

@@ -1,0 +1,26 @@
+{
+  "conflicts": [],
+  "content": "Fixed in bd189e9: secure defaults to true outside the local environment.",
+  "created_at": "2026-09-02T07:21:00.375379+00:00",
+  "destination_memory_id": "MEM-20260902-1c500c72",
+  "destination_revision": 1,
+  "id": "e83bd80e-a557-44d1-9166-b012bd9cf10e",
+  "outcome": "promoted",
+  "proposer": "local",
+  "review_mode": "automatic",
+  "reviewed_at": "2026-09-02T07:21:00.377369+00:00",
+  "reviewer": null,
+  "revision": 3,
+  "schema_version": 1,
+  "source_records": [
+    {
+      "id": "1c500c72-63e9-4f13-81c8-13d662212f82",
+      "path": "project-brain/dynamic/findings/1c500c72-63e9-4f13-81c8-13d662212f82.md",
+      "revision": 2,
+      "type": "finding"
+    }
+  ],
+  "status": "applied",
+  "title": "Session cookie had no Secure default despite a 7-day lifetime",
+  "updated_at": "2026-09-02T07:21:00.386795+00:00"
+}

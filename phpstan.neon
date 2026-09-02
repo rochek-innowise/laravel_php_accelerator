@@ -2,9 +2,16 @@ includes:
     - vendor/larastan/larastan/extension.neon
 
 parameters:
-    # Level 5 passes with no baseline. Level 6 reports 17, level 7 twenty, level 8 fifty-five —
-    # mostly missing iterable value types and nullable access in the framework's seams. Raising it
-    # is a ratchet for a separate change, not something to bolt onto a review pass.
+    # Level 5 passes with no baseline, and that is the point — a gate nobody has suppressed.
+    #
+    # Level 6 was measured rather than guessed: 34 errors, three of them ours (an untyped
+    # Attribute on User::name(), now fixed). The remaining 31 are all the identical "Unable to
+    # resolve the template type TComponent" on every Livewire::actingAs()->test() call — the
+    # package's own generic, not our typing. Raising the level today would buy 31 baseline
+    # entries of someone else's noise and nothing else.
+    #
+    # Revisit when Livewire's testing stubs resolve their generic, or if a typed test helper
+    # is worth wrapping around the harness.
     level: 5
 
     paths:

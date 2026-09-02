@@ -1,0 +1,26 @@
+{
+  "conflicts": [],
+  "content": "Fixed in ff48b14: sendPasswordResetNotification returns early for non-active accounts. The broker still reports success, so no account-status oracle appears.",
+  "created_at": "2026-09-02T07:21:00.346407+00:00",
+  "destination_memory_id": "MEM-20260902-074c187d",
+  "destination_revision": 1,
+  "id": "760da077-bc28-44ea-9b2f-67e8adb61022",
+  "outcome": "promoted",
+  "proposer": "local",
+  "review_mode": "automatic",
+  "reviewed_at": "2026-09-02T07:21:00.348429+00:00",
+  "reviewer": null,
+  "revision": 3,
+  "schema_version": 1,
+  "source_records": [
+    {
+      "id": "074c187d-2423-4bc6-bccc-a043234aab53",
+      "path": "project-brain/dynamic/findings/074c187d-2423-4bc6-bccc-a043234aab53.md",
+      "revision": 2,
+      "type": "finding"
+    }
+  ],
+  "status": "applied",
+  "title": "Password reset links were mailed to inactive and deleted accounts",
+  "updated_at": "2026-09-02T07:21:00.357383+00:00"
+}

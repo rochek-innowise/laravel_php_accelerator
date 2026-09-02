@@ -23,7 +23,11 @@
         <env name="BCRYPT_ROUNDS" value="4"/>
         <env name="BROADCAST_CONNECTION" value="null"/>
         <env name="CACHE_STORE" value="array"/>
-        <!-- MariaDB, not SQLite: the schema uses MariaDB-only DDL (AD-013). -->
+        <!-- MariaDB, not SQLite: the schema uses MariaDB-only DDL (AD-013).
+             These are DDEV defaults, not a hard pin. PHPUnit sets an env entry only when the
+             variable is absent (there is no force="true" here), so CI overrides them by exporting
+             DB_*. Verified: DB_DATABASE=nonexistent_db makes the suite fail, so the environment
+             wins over these values. -->
         <env name="DB_CONNECTION" value="mysql"/>
         <env name="DB_HOST" value="db"/>
         <env name="DB_PORT" value="3306"/>

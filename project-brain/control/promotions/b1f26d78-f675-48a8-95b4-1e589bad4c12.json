@@ -1,0 +1,26 @@
+{
+  "conflicts": [],
+  "content": "Fixed in 61b8c85: asserted over seeded data, the only place both sides of the denormalization are written together.",
+  "created_at": "2026-09-02T07:21:00.331760+00:00",
+  "destination_memory_id": "MEM-20260902-063160c0",
+  "destination_revision": 1,
+  "id": "b1f26d78-f675-48a8-95b4-1e589bad4c12",
+  "outcome": "promoted",
+  "proposer": "local",
+  "review_mode": "automatic",
+  "reviewed_at": "2026-09-02T07:21:00.334104+00:00",
+  "reviewer": null,
+  "revision": 3,
+  "schema_version": 1,
+  "source_records": [
+    {
+      "id": "063160c0-190c-48b6-b1e3-17deeb9d1c8f",
+      "path": "project-brain/dynamic/findings/063160c0-190c-48b6-b1e3-17deeb9d1c8f.md",
+      "revision": 2,
+      "type": "finding"
+    }
+  ],
+  "status": "applied",
+  "title": "is_child_account invariant promised by the design was never asserted",
+  "updated_at": "2026-09-02T07:21:00.341977+00:00"
+}

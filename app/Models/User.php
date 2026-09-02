@@ -57,7 +57,11 @@ class User extends Authenticatable implements MustVerifyEmail
         ];
     }
 
-    /** Display name; the `name` column was dropped in favour of first/last (FR-016). */
+    /**
+     * Display name; the `name` column was dropped in favour of first/last (FR-016).
+     *
+     * @return Attribute<string, never>
+     */
     protected function name(): Attribute
     {
         return Attribute::get(

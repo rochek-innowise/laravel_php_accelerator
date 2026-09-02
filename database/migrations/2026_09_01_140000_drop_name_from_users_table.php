@@ -19,7 +19,9 @@ return new class extends Migration
     public function down(): void
     {
         Schema::table('users', function (Blueprint $table): void {
-            $table->string('name')->after('id');
+            // Nullable: the dropped values are gone, and a NOT NULL column would silently
+            // backfill empty strings rather than admit the rollback cannot restore them.
+            $table->string('name')->nullable()->after('id');
         });
     }
 };
