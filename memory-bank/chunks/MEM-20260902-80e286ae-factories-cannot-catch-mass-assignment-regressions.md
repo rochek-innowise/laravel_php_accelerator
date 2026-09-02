@@ -1,6 +1,6 @@
 ---
 {
-  "id": "MEM-20260903-80e286ae",
+  "id": "MEM-20260902-80e286ae",
   "title": "Factories cannot catch mass-assignment regressions because they construct unguarded",
   "type": "convention",
   "status": "active",
@@ -24,7 +24,7 @@
   ],
   "supersedes": [],
   "superseded_by": null,
-  "valid_from": "2026-09-03",
+  "valid_from": "2026-09-02",
   "valid_to": null,
   "source_digests": [
     {

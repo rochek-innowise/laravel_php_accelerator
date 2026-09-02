@@ -1,6 +1,6 @@
 ---
 {
-  "id": "MEM-20260903-6bede1f2",
+  "id": "MEM-20260902-6bede1f2",
   "title": "Tests can pass while pinning nothing when the test case is already excluded by an outer filter",
   "type": "convention",
   "status": "active",
@@ -22,7 +22,7 @@
   ],
   "supersedes": [],
   "superseded_by": null,
-  "valid_from": "2026-09-03",
+  "valid_from": "2026-09-02",
   "valid_to": null,
   "source_digests": [
     {

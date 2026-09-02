@@ -1,6 +1,6 @@
 ---
 {
-  "id": "MEM-20260903-744e2739",
+  "id": "MEM-20260902-744e2739",
   "title": "Laravel's base Notification class already uses SerializesModels; fat queue payloads are not a concern for notification classes",
   "type": "domain",
   "status": "active",
@@ -23,7 +23,7 @@
   ],
   "supersedes": [],
   "superseded_by": null,
-  "valid_from": "2026-09-03",
+  "valid_from": "2026-09-02",
   "valid_to": null,
   "source_digests": [
     {

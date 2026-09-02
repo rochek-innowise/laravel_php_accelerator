@@ -1,6 +1,6 @@
 ---
 {
-  "id": "MEM-20260903-819a39fc",
+  "id": "MEM-20260902-819a39fc",
   "title": "ApprovedPurchaseExecutor is called inside the transaction that performs the status transition; Epic-05 must decide its future placement",
   "type": "decision",
   "status": "active",
@@ -24,7 +24,7 @@
   ],
   "supersedes": [],
   "superseded_by": null,
-  "valid_from": "2026-09-03",
+  "valid_from": "2026-09-02",
   "valid_to": null,
   "source_digests": [
     {

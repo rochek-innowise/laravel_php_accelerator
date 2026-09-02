@@ -1,6 +1,6 @@
 ---
 {
-  "id": "MEM-20260903-09f971b9",
+  "id": "MEM-20260902-09f971b9",
   "title": "Unscoped identity-class models require guards against forged IDs on public request properties",
   "type": "domain",
   "status": "active",
@@ -22,7 +22,7 @@
   ],
   "supersedes": [],
   "superseded_by": null,
-  "valid_from": "2026-09-03",
+  "valid_from": "2026-09-02",
   "valid_to": null,
   "source_digests": [
     {
