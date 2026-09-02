@@ -7,3 +7,237 @@
     --font-sans: 'Instrument Sans', ui-sans-serif, system-ui, sans-serif, 'Apple Color Emoji', 'Segoe UI Emoji',
         'Segoe UI Symbol', 'Noto Color Emoji';
 }
+
+/*
+ * Baseline styling for Slice A, applied to element selectors rather than utility classes.
+ *
+ * The trade-off is deliberate: the Blade markup is already semantic (label/for, fieldset/legend,
+ * role="alert", table with caption and scope), so styling the elements gives every screen a usable
+ * appearance without touching twelve templates. It is a floor, not a design — when real visual
+ * direction arrives, this layer comes out and utility classes go into the markup instead.
+ */
+@layer base {
+    :root {
+        --surface: theme(colors.white);
+        --surface-sunken: theme(colors.slate.50);
+        --border: theme(colors.slate.200);
+        --text: theme(colors.slate.800);
+        --text-muted: theme(colors.slate.500);
+        --accent: theme(colors.slate.900);
+        --danger: theme(colors.red.600);
+    }
+
+    @media (prefers-color-scheme: dark) {
+        :root {
+            --surface: theme(colors.slate.900);
+            --surface-sunken: theme(colors.slate.950);
+            --border: theme(colors.slate.700);
+            --text: theme(colors.slate.100);
+            --text-muted: theme(colors.slate.400);
+            --accent: theme(colors.slate.100);
+            --danger: theme(colors.red.400);
+        }
+    }
+
+    body {
+        background-color: var(--surface-sunken);
+        color: var(--text);
+        font-family: var(--font-sans);
+        line-height: 1.55;
+    }
+
+    main {
+        margin-inline: auto;
+        max-width: 56rem;
+        padding: 2.5rem 1.25rem 4rem;
+    }
+
+    h1 {
+        font-size: 1.5rem;
+        font-weight: 600;
+        letter-spacing: -0.01em;
+        margin-bottom: 1.5rem;
+    }
+
+    /* Navigation is a row of links plus the logout form, which is why it needs the flex rule. */
+    nav {
+        align-items: center;
+        background-color: var(--surface);
+        border-bottom: 1px solid var(--border);
+        display: flex;
+        gap: 1.25rem;
+        padding: 0.875rem 1.25rem;
+    }
+
+    nav form {
+        margin-inline-start: auto;
+    }
+
+    a {
+        color: var(--text);
+        text-decoration-color: var(--border);
+        text-underline-offset: 0.2em;
+    }
+
+    a:hover {
+        text-decoration-color: currentColor;
+    }
+
+    fieldset {
+        border: 1px solid var(--border);
+        border-radius: 0.5rem;
+        margin-block: 1.5rem;
+        padding: 1rem 1.25rem 1.25rem;
+    }
+
+    legend {
+        color: var(--text-muted);
+        font-size: 0.8125rem;
+        font-weight: 600;
+        letter-spacing: 0.04em;
+        padding-inline: 0.375rem;
+        text-transform: uppercase;
+    }
+
+    label {
+        display: block;
+        font-size: 0.875rem;
+        font-weight: 500;
+        margin-bottom: 0.375rem;
+        margin-top: 1rem;
+    }
+
+    /* The remember-me checkbox is inside its label, so that one stays inline. */
+    label:has(input[type='checkbox']) {
+        align-items: center;
+        display: flex;
+        font-weight: 400;
+        gap: 0.5rem;
+    }
+
+    input:not([type='checkbox']),
+    select,
+    textarea {
+        background-color: var(--surface);
+        border: 1px solid var(--border);
+        border-radius: 0.375rem;
+        color: var(--text);
+        display: block;
+        max-width: 28rem;
+        padding: 0.5rem 0.625rem;
+        width: 100%;
+    }
+
+    textarea {
+        min-height: 5rem;
+    }
+
+    input:focus-visible,
+    select:focus-visible,
+    textarea:focus-visible,
+    button:focus-visible,
+    a:focus-visible {
+        outline: 2px solid var(--accent);
+        outline-offset: 2px;
+    }
+
+    button[type='submit'],
+    button:not([disabled]):not([type='button']) {
+        background-color: var(--accent);
+        border-radius: 0.375rem;
+        color: var(--surface);
+        cursor: pointer;
+        font-size: 0.875rem;
+        font-weight: 500;
+        margin-top: 1.5rem;
+        padding: 0.5rem 1rem;
+    }
+
+    button[disabled] {
+        border: 1px solid var(--border);
+        border-radius: 0.375rem;
+        color: var(--text-muted);
+        cursor: not-allowed;
+        font-size: 0.8125rem;
+        padding: 0.25rem 0.5rem;
+    }
+
+    [role='alert'] {
+        color: var(--danger);
+        font-size: 0.875rem;
+        margin-top: 0.375rem;
+    }
+
+    ul[role='alert'] {
+        background-color: var(--surface);
+        border: 1px solid var(--danger);
+        border-radius: 0.5rem;
+        list-style: none;
+        padding: 0.75rem 1rem;
+    }
+
+    [role='status'] {
+        background-color: var(--surface);
+        border: 1px solid var(--border);
+        border-radius: 0.5rem;
+        font-size: 0.875rem;
+        margin-bottom: 1.5rem;
+        padding: 0.75rem 1rem;
+    }
+
+    table {
+        background-color: var(--surface);
+        border: 1px solid var(--border);
+        border-radius: 0.5rem;
+        border-collapse: collapse;
+        font-size: 0.875rem;
+        margin-top: 1.5rem;
+        width: 100%;
+    }
+
+    caption {
+        color: var(--text-muted);
+        font-size: 0.8125rem;
+        padding-bottom: 0.5rem;
+        text-align: start;
+    }
+
+    th,
+    td {
+        border-bottom: 1px solid var(--border);
+        padding: 0.625rem 0.875rem;
+        text-align: start;
+    }
+
+    th {
+        color: var(--text-muted);
+        font-size: 0.75rem;
+        font-weight: 600;
+        letter-spacing: 0.04em;
+        text-transform: uppercase;
+    }
+
+    tr:last-child td {
+        border-bottom: 0;
+    }
+
+    dl {
+        background-color: var(--surface);
+        border: 1px solid var(--border);
+        border-radius: 0.5rem;
+        display: grid;
+        font-size: 0.875rem;
+        gap: 0.5rem 1.5rem;
+        grid-template-columns: auto 1fr;
+        margin-top: 1.5rem;
+        padding: 1rem 1.25rem;
+    }
+
+    dt {
+        color: var(--text-muted);
+    }
+
+    img {
+        border-radius: 0.5rem;
+    }
+}
