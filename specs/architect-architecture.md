@@ -286,6 +286,11 @@ config change (`PROFILE_PHOTO_DISK`) rather than a code change. A container boug
 
 `phpunit.xml` ships pointing at `sqlite::memory:`, which cannot execute this schema: BR-006 is enforced by a MariaDB generated column using `IF()`, and the two engines diverge exactly on that feature — SQLite has partial indexes, MariaDB does not, which is the whole reason the generated column exists.
 
+CI runs the same suite against a MariaDB service container (`.github/workflows/ci.yml`).
+`phpunit.xml` holds DDEV defaults but sets an env entry only when the variable is absent, so the
+workflow points the suite at the container by exporting `DB_*` — verified by running the suite
+locally with CI-style credentials rather than assuming it.
+
 Ruling: the suite runs against a MariaDB test database in DDEV. An in-memory SQLite run would leave the database-level invariant the architecture depends on completely unexercised while appearing green. Speed is not worth a test suite that cannot fail on the thing most likely to break.
 
 ---
