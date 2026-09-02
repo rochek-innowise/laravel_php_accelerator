@@ -4,12 +4,14 @@ declare(strict_types=1);
 
 namespace App\Models;
 
+use App\Support\Tenancy\TenantScope;
 use Database\Factories\PlayerProfileFactory;
 use Illuminate\Database\Eloquent\Attributes\Fillable;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\BelongsToMany;
+use Illuminate\Database\Eloquent\Relations\HasMany;
 
 // Identity, never tenant-scoped (AD-001): a trainer's roster is a query over trainer_players.
 // `user_id` is not mass-assignable: a request-supplied login would let one account claim
@@ -60,6 +62,30 @@ class PlayerProfile extends Model
     public function isGuardedBy(User $user): bool
     {
         return $this->guardians()->whereKey($user->getKey())->exists();
+    }
+
+    /**
+     * The organisations this person trains with.
+     *
+     * Tenant-blind, and the reasoning matters: this is keyed on the profile's own id, so it reads
+     * one person's own memberships — the data behind the family view and the trainer switcher,
+     * which are cross-organisation by definition. A *trainer's roster* is the opposite direction
+     * and starts from `TrainerPlayer::query()`, which stays scoped.
+     *
+     * @return HasMany<TrainerPlayer, $this>
+     */
+    public function trainerAssociations(): HasMany
+    {
+        return $this->hasMany(TrainerPlayer::class)->withoutGlobalScope(TenantScope::class);
+    }
+
+    /** @return BelongsToMany<TrainerProfile, $this> */
+    public function trainers(): BelongsToMany
+    {
+        return $this->belongsToMany(TrainerProfile::class, 'trainer_players')
+            ->withPivot(['status', 'connected_at', 'deleted_at'])
+            ->wherePivotNull('deleted_at')
+            ->withTimestamps();
     }
 
     /** The optional login backing this profile. */
