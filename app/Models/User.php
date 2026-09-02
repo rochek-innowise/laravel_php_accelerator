@@ -12,7 +12,7 @@ use Illuminate\Database\Eloquent\Attributes\Fillable;
 use Illuminate\Database\Eloquent\Attributes\Hidden;
 use Illuminate\Database\Eloquent\Casts\Attribute;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
-use Illuminate\Database\Eloquent\Relations\HasMany;
+use Illuminate\Database\Eloquent\Relations\BelongsToMany;
 use Illuminate\Database\Eloquent\Relations\HasOne;
 use Illuminate\Foundation\Auth\User as Authenticatable;
 use Illuminate\Notifications\Notifiable;
@@ -81,11 +81,19 @@ class User extends Authenticatable implements MustVerifyEmail
         return $this->hasOne(CoachProfile::class);
     }
 
-    /** Profiles this user owns: their own self profile plus any children. */
-    /** @return HasMany<PlayerProfile, $this> */
-    public function ownedPlayerProfiles(): HasMany
+    /** People this user is responsible for — children, not their own self profile. */
+    /** @return BelongsToMany<PlayerProfile, $this> */
+    public function guardedPlayerProfiles(): BelongsToMany
     {
-        return $this->hasMany(PlayerProfile::class, 'owner_user_id');
+        return $this->belongsToMany(PlayerProfile::class, 'player_guardians', 'guardian_user_id', 'player_profile_id')
+            ->withPivot(['relationship', 'is_primary'])
+            ->withTimestamps();
+    }
+
+    /** BR-022: a parent is emergent from guarding a child, never a role of its own. */
+    public function isParent(): bool
+    {
+        return $this->guardedPlayerProfiles()->where('is_child', true)->exists();
     }
 
     /** The profile this user personally trains under, if any. */

@@ -6,6 +6,8 @@ namespace App\Livewire;
 
 use App\Actions\Fortify\UpdateUserProfileInformation;
 use App\Actions\Profile\UpdateRoleSpecificProfile;
+use App\Models\PlayerProfile;
+use App\Models\User;
 use Illuminate\Contracts\View\View;
 use Livewire\Attributes\Locked;
 use Livewire\Component;
@@ -27,8 +29,8 @@ final class ProfileForm extends Component
     #[Locked]
     public bool $has_player_profile = false;
 
-    #[Locked]
-    public bool $is_parent = false;
+    /** @var array<int, array{id: int, name: string, emergency_contact: string|null}> */
+    public array $children = [];
 
     #[Locked]
     public ?string $skill_level = null;
@@ -36,8 +38,6 @@ final class ProfileForm extends Component
     public ?string $school = null;
 
     public ?string $jersey_number = null;
-
-    public ?string $emergency_contact = null;
 
     #[Locked]
     public bool $has_coach_profile = false;
@@ -74,8 +74,6 @@ final class ProfileForm extends Component
             $this->skill_level = $player->skill_level;
             $this->school = $player->school;
             $this->jersey_number = $player->jersey_number;
-            $this->emergency_contact = $player->emergency_contact;
-            $this->is_parent = $user->ownedPlayerProfiles()->where('is_child', true)->exists();
         }
 
         if ($coach = $user->coachProfile) {
@@ -85,6 +83,20 @@ final class ProfileForm extends Component
             $this->certifications = $coach->certifications;
             $this->is_public = $coach->is_public;
         }
+
+        // FR-016: a guardian keeps the emergency contact on each child's profile, where a trainer
+        // looking after that child will actually find it — not on the guardian's own profile,
+        // which a parent who does not train has no reason to own.
+        $this->children = $user->guardedPlayerProfiles()
+            ->where('is_child', true)
+            ->orderBy('name')
+            ->get()
+            ->map(fn (PlayerProfile $child): array => [
+                'id' => $child->id,
+                'name' => $child->name,
+                'emergency_contact' => $child->emergency_contact,
+            ])
+            ->all();
 
         if ($trainer = $user->trainerProfile) {
             $this->has_trainer_profile = true;
@@ -110,11 +122,10 @@ final class ProfileForm extends Component
         if ($player = $user->playerProfile) {
             $this->authorize('update', $player);
 
-            // Re-derived rather than trusted from the public property: it is a validation-visibility
-            // flag on the client, not the authorization boundary.
-            $isParent = $user->ownedPlayerProfiles()->where('is_child', true)->exists();
-            $updateRoleSpecificProfile->handle($player, $this->validate($this->playerRules($isParent)));
+            $updateRoleSpecificProfile->handle($player, $this->validate($this->playerRules()));
         }
+
+        $this->saveChildren($user, $updateRoleSpecificProfile);
 
         if ($coach = $user->coachProfile) {
             $this->authorize('update', $coach);
@@ -129,19 +140,52 @@ final class ProfileForm extends Component
         session()->flash('status', 'Profile updated.');
     }
 
+    /**
+     * The ids travel to the client and a tampered snapshot really does change them — verified.
+     * Two things stop that: each id is re-resolved through this user's guardianship, so an
+     * unrelated profile is simply not found and the write is skipped silently rather than
+     * refused (a 403 would confirm the profile exists); and the policy check behind it refuses
+     * anyway if the resolution is ever loosened.
+     */
+    protected function saveChildren(User $user, UpdateRoleSpecificProfile $updateRoleSpecificProfile): void
+    {
+        if (empty($this->children)) {
+            return;
+        }
+
+        $validated = $this->validate($this->childrenRules());
+
+        foreach ($validated['children'] as $submitted) {
+            $child = $user->guardedPlayerProfiles()->where('player_profiles.id', $submitted['id'])->first();
+
+            if (empty($child)) {
+                continue;
+            }
+
+            $this->authorize('update', $child);
+            $updateRoleSpecificProfile->handle($child, ['emergency_contact' => $submitted['emergency_contact']]);
+        }
+    }
+
     /** @return array<string, array<int, string>> */
-    protected function playerRules(bool $isParent): array
+    protected function playerRules(): array
     {
         $rules = [
             'school' => ['nullable', 'string', 'max:255'],
             'jersey_number' => ['nullable', 'string', 'max:10'],
         ];
 
-        if ($isParent) {
-            $rules['emergency_contact'] = ['nullable', 'string', 'max:65535'];
-        }
-
         return $rules;
+    }
+
+    /** @return array<string, array<int, string>> */
+    protected function childrenRules(): array
+    {
+        return [
+            'children' => ['array'],
+            'children.*.id' => ['required', 'integer'],
+            'children.*.emergency_contact' => ['nullable', 'string', 'max:65535'],
+        ];
     }
 
     /** @return array<string, array<int, string>> */

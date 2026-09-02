@@ -42,9 +42,14 @@ class DemoSeeder extends Seeder
         // is the ordinary case rather than a branch.
         PlayerProfile::factory()->selfProfile($parent)->create();
 
-        PlayerProfile::factory()->child()->create([
-            'owner_user_id' => $parent->id,
+        PlayerProfile::factory()->child()->guardedBy($parent, relationship: 'mother')->create([
             'name' => 'Alex Miles',
+        ]);
+
+        $secondGuardian = User::factory()->create([
+            'first_name' => 'Taras',
+            'last_name' => 'Miles',
+            'email' => 'parent2@example.test',
         ]);
 
         $childLogin = User::factory()->childAccount()->create([
@@ -53,10 +58,14 @@ class DemoSeeder extends Seeder
             'email' => 'child@example.test',
         ]);
 
-        PlayerProfile::factory()->child()->create([
-            'owner_user_id' => $parent->id,
-            'user_id' => $childLogin->id,
-            'name' => 'Maya Miles',
-        ]);
+        // Maya has two guardians, which is the case `owner_user_id` could not express.
+        PlayerProfile::factory()
+            ->child()
+            ->guardedBy($parent, relationship: 'mother')
+            ->guardedBy($secondGuardian, isPrimary: false, relationship: 'father')
+            ->create([
+                'user_id' => $childLogin->id,
+                'name' => 'Maya Miles',
+            ]);
     }
 }

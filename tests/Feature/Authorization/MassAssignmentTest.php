@@ -50,9 +50,9 @@ final class MassAssignmentTest extends TestCase
     }
 
     /**
-     * The owner columns are the tenancy boundary: a request-supplied owner_user_id would let one
-     * account claim another family's child, and a request-supplied trainer_profile_id would place
-     * a coach inside someone else's organisation — the leakage NFR-010 puts at 0%.
+     * These columns are the tenancy boundary: a request-supplied user_id would let one account
+     * claim another family's child, and a request-supplied trainer_profile_id would place a coach
+     * inside someone else's organisation — the leakage NFR-010 puts at 0%.
      */
     public function test_profile_owner_columns_cannot_be_mass_assigned(): void
     {
@@ -60,12 +60,10 @@ final class MassAssignmentTest extends TestCase
 
         $player = new PlayerProfile([
             'name' => 'Claimed Child',
-            'owner_user_id' => $victim->id,
             'user_id' => $victim->id,
         ]);
 
         $this->assertSame('Claimed Child', $player->name);
-        $this->assertArrayNotHasKey('owner_user_id', $player->getAttributes());
         $this->assertArrayNotHasKey('user_id', $player->getAttributes());
 
         $coach = new CoachProfile([

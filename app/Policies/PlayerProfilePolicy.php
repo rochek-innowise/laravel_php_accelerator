@@ -31,14 +31,14 @@ final class PlayerProfilePolicy
 
     public function manageTrainerAssociations(User $user, PlayerProfile $playerProfile): bool
     {
-        // FR-009/FR-011: the owning parent only, never the child themselves.
-        return $user->id === $playerProfile->owner_user_id && ! $user->is_child_account;
+        // FR-009/FR-011: a guardian only, never the child themselves — even for their own profile.
+        return $playerProfile->isGuardedBy($user) && ! $user->is_child_account;
     }
 
-    /** The owning account, or the login this profile itself is backed by. */
+    /** A guardian of this person, or the login the profile itself is backed by. */
     protected function ownsOrIs(User $user, PlayerProfile $playerProfile): bool
     {
-        return $user->id === $playerProfile->owner_user_id
-            || $user->id === $playerProfile->user_id;
+        return $user->id === $playerProfile->user_id
+            || $playerProfile->isGuardedBy($user);
     }
 }

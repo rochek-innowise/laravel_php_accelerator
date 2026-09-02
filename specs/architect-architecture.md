@@ -220,6 +220,37 @@ The attempted address is recorded; the submitted password never is — `Failed` 
 
 ---
 
+### AD-019 — Guardianship is a relation, not an owner column
+
+`player_profiles.owner_user_id` could hold one guardian, so the ordinary case — a mother and a
+father on the same child — had no representation. Guardianship moves to `player_guardians`
+(`player_profile_id`, `guardian_user_id`, `relationship`, `is_primary`, unique on the pair).
+
+A **self profile carries no guardian row**. The person is reached through `user_id`, and inventing
+a row where someone guards themselves would put a special case in every query that walks the
+relation.
+
+Consequences that are easy to get wrong later:
+
+- `PlayerProfilePolicy` resolves reachability as `user_id === $user->id || isGuardedBy($user)`.
+  `manageTrainerAssociations` requires guardianship **and** `! is_child_account`, so a child with
+  its own login can view its profile but never manage its trainer associations (FR-011).
+- "Parent" stays emergent (BR-022): `User::isParent()` is guarding at least one child, never a
+  role or a column.
+- FR-016's emergency contact lives on **each child's** profile, edited by any of its guardians —
+  not on the guardian's own profile. A guardian who does not train has no self profile, so the
+  field would otherwise be unreachable for the most common parent; and a trainer looking after
+  that child reads the child's record, not the parent's.
+- Child ids reach the client in the profile form and a tampered snapshot does change them. Each
+  id is re-resolved through the acting user's guardianship, so an unrelated profile is skipped
+  silently rather than refused — a 403 there would confirm the profile exists.
+
+**Migration note:** existing owners became primary guardians, except where the owner was the
+profile's own login. The reverse migration restores `owner_user_id` as nullable, because a child
+with two guardians has no single owner to restore.
+
+---
+
 ### AD-013 — The test suite runs on MariaDB
 
 `phpunit.xml` ships pointing at `sqlite::memory:`, which cannot execute this schema: BR-006 is enforced by a MariaDB generated column using `IF()`, and the two engines diverge exactly on that feature — SQLite has partial indexes, MariaDB does not, which is the whole reason the generated column exists.

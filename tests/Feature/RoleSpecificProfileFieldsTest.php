@@ -35,35 +35,63 @@ final class RoleSpecificProfileFieldsTest extends TestCase
         ]);
     }
 
-    public function test_a_parent_edits_emergency_contact_on_their_self_profile(): void
+    /**
+     * FR-016 with guardianship: the contact lives on each child's profile, where the trainer
+     * responsible for that child will look for it. A guardian who does not train has no self
+     * profile at all, so putting it on their own record would have hidden the field from them.
+     */
+    public function test_a_guardian_edits_the_emergency_contact_of_each_child(): void
     {
-        $parent = User::factory()->role(Role::Player)->create();
-        $self = PlayerProfile::factory()->selfProfile($parent)->create();
-        PlayerProfile::factory()->child()->create(['owner_user_id' => $parent->id]);
+        $parent = User::factory()->create();
+        $first = PlayerProfile::factory()->child()->guardedBy($parent)->create(['name' => 'Alex']);
+        $second = PlayerProfile::factory()->child()->guardedBy($parent)->create(['name' => 'Maya']);
 
         Livewire::actingAs($parent)
             ->test(ProfileForm::class)
-            ->assertSet('is_parent', true)
-            ->set('emergency_contact', 'Call Grandma: 555-0100')
+            ->set('children.0.emergency_contact', 'Gran, 555-0101')
+            ->set('children.1.emergency_contact', 'Uncle, 555-0202')
             ->call('save')
             ->assertHasNoErrors();
 
-        $this->assertSame('Call Grandma: 555-0100', $self->fresh()->emergency_contact);
+        $this->assertSame('Gran, 555-0101', $first->fresh()->emergency_contact);
+        $this->assertSame('Uncle, 555-0202', $second->fresh()->emergency_contact);
     }
 
-    public function test_a_non_parent_player_cannot_write_emergency_contact(): void
+    /** A guardian who does not train themselves still gets the children block. */
+    public function test_a_guardian_without_a_self_profile_still_sees_their_children(): void
     {
-        $user = User::factory()->role(Role::Player)->create();
-        $self = PlayerProfile::factory()->selfProfile($user)->create(['emergency_contact' => null]);
+        $parent = User::factory()->create();
+        PlayerProfile::factory()->child()->guardedBy($parent)->create(['name' => 'Alex']);
 
-        Livewire::actingAs($user)
+        Livewire::actingAs($parent)
             ->test(ProfileForm::class)
-            ->assertSet('is_parent', false)
-            ->set('emergency_contact', 'Tampered')
+            ->assertSet('has_player_profile', false)
+            ->assertSee('Alex');
+    }
+
+    /**
+     * A tampered child id must not reach another family. The test asserts the outcome rather than
+     * the mechanism: guardianship re-resolution skips the row and the policy would refuse it
+     * anyway, so this stays green while either guard holds — which is the point of having two.
+     */
+    public function test_a_submitted_child_id_outside_the_guardianship_is_ignored(): void
+    {
+        $parent = User::factory()->create();
+        PlayerProfile::factory()->child()->guardedBy($parent)->create(['name' => 'Alex']);
+
+        $stranger = PlayerProfile::factory()
+            ->child()
+            ->guardedBy(User::factory()->create())
+            ->create(['emergency_contact' => 'Untouched']);
+
+        Livewire::actingAs($parent)
+            ->test(ProfileForm::class)
+            ->set('children.0.id', $stranger->id)
+            ->set('children.0.emergency_contact', 'Injected')
             ->call('save')
             ->assertHasNoErrors();
 
-        $this->assertNull($self->fresh()->emergency_contact);
+        $this->assertSame('Untouched', $stranger->fresh()->emergency_contact);
     }
 
     public function test_skill_level_is_displayed_but_never_written(): void
@@ -203,13 +231,16 @@ final class RoleSpecificProfileFieldsTest extends TestCase
      * Every derived or display-only property is locked, so a tampered client write fails loudly
      * instead of being silently discarded — the difference matters when a later slice starts
      * reading one of these flags for something other than which fieldset to render.
+     *
+     * `children` is deliberately not locked: the guardian edits it. Its ids are re-resolved
+     * through the guardianship relation on save, which is what makes tampering harmless.
      */
     public function test_every_derived_property_rejects_a_client_write(): void
     {
         $user = User::factory()->role(Role::Player)->create();
         PlayerProfile::factory()->selfProfile($user)->create(['skill_level' => 'Beginner']);
 
-        $locked = ['has_player_profile', 'is_parent', 'skill_level', 'has_coach_profile', 'has_trainer_profile'];
+        $locked = ['has_player_profile', 'skill_level', 'has_coach_profile', 'has_trainer_profile'];
         $unlocked = [];
 
         foreach ($locked as $property) {

@@ -90,7 +90,7 @@ final class AuthorizationTest extends TestCase
     {
         $parent = User::factory()->create();
         $stranger = User::factory()->create();
-        $child = PlayerProfile::factory()->child()->create(['owner_user_id' => $parent->id]);
+        $child = PlayerProfile::factory()->child()->guardedBy($parent)->create();
 
         $this->assertTrue($parent->can('manageTrainerAssociations', $child));
         $this->assertFalse($stranger->can('manageTrainerAssociations', $child));

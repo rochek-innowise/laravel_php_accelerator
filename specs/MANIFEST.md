@@ -14,7 +14,7 @@ A multi-tenant Laravel platform where independent trainers run their training or
 ## Key Decisions
 
 - **Tenancy**: single-database, `trainer_profile_id` + a **fail-closed** global scope resolved from session. No tenancy package — one user legitimately spans tenants and there are no subdomains.
-- **Identity**: `User` (credential) and `PlayerProfile` (trainable person) are separate tables. "Parent" is emergent from owning several profiles, not a role.
+- **Identity**: `User` (credential) and `PlayerProfile` (trainable person) are separate tables. "Parent" is emergent from *guarding* a child, not a role — guardianship is the `player_guardians` relation so a child can have both parents (AD-019).
 - **Authorization**: `Role` enum + Policies/Gates. No permissions package — four compile-time roles. Child constraints live in one `ChildAbilities::DENIED` array.
 - **Auth scaffolding**: Fortify + Livewire installed directly (starter kits are `laravel new` templates, not installable here). Fortify registration is **disabled**; the only registration surface is `/join/{code}`.
 - **Epic boundaries**: exactly one interface, `ApprovedPurchaseExecutor`, replaced by Epic-05. No other stubs.

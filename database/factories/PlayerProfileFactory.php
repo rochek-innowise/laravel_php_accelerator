@@ -19,7 +19,6 @@ class PlayerProfileFactory extends Factory
     public function definition(): array
     {
         return [
-            'owner_user_id' => User::factory(),
             'user_id' => null,
             'name' => fake()->name(),
             'birth_date' => fake()->dateTimeBetween('-40 years', '-19 years'),
@@ -37,11 +36,21 @@ class PlayerProfileFactory extends Factory
     public function selfProfile(User $owner): static
     {
         return $this->state(fn (array $attributes) => [
-            'owner_user_id' => $owner->id,
             'user_id' => $owner->id,
             'name' => $owner->name,
             'is_child' => false,
         ]);
+    }
+
+    /** Attaches the guardian after creation — guardianship is a pivot row, not an attribute. */
+    public function guardedBy(User $guardian, bool $isPrimary = true, ?string $relationship = null): static
+    {
+        return $this->afterCreating(function (PlayerProfile $profile) use ($guardian, $isPrimary, $relationship): void {
+            $profile->guardians()->attach($guardian, [
+                'is_primary' => $isPrimary,
+                'relationship' => $relationship,
+            ]);
+        });
     }
 
     public function child(): static

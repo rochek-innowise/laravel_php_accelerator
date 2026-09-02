@@ -26,12 +26,6 @@
                 <label for="jersey_number">Jersey number</label>
                 <input id="jersey_number" type="text" wire:model="jersey_number">
                 @error('jersey_number') <p role="alert">{{ $message }}</p> @enderror
-
-                @if ($is_parent)
-                    <label for="emergency_contact">Emergency contact</label>
-                    <textarea id="emergency_contact" wire:model="emergency_contact"></textarea>
-                    @error('emergency_contact') <p role="alert">{{ $message }}</p> @enderror
-                @endif
             </fieldset>
         @endif
 
@@ -82,6 +76,18 @@
 
         <button type="submit">Save</button>
     </form>
+
+    @if (! empty($children))
+        <fieldset>
+            <legend>Emergency contact per child</legend>
+
+            @foreach ($children as $index => $child)
+                <label for="child-{{ $child['id'] }}">{{ $child['name'] }}</label>
+                <textarea id="child-{{ $child['id'] }}" wire:model="children.{{ $index }}.emergency_contact"></textarea>
+                @error("children.{$index}.emergency_contact") <p role="alert">{{ $message }}</p> @enderror
+            @endforeach
+        </fieldset>
+    @endif
 
     {{-- Read-only per FR-016: email needs its own flow, role/skill level/created date are set elsewhere. --}}
     <dl>
