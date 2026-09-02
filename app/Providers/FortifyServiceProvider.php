@@ -66,6 +66,11 @@ class FortifyServiceProvider extends ServiceProvider
         RateLimiter::for('fortify', fn (Request $request): Limit => $request->isMethodSafe()
             ? Limit::none()
             : Limit::perMinute(10)->by((string) $request->ip()));
+
+        // `/join/{code}` is a GET, so this bounds *code probing* only. Account creation happens on
+        // Livewire's update endpoint, which no route-level limiter here can reach — that half is
+        // enforced inside the component, keyed by the same limiter name so both read as one rule.
+        RateLimiter::for('join', fn (Request $request): Limit => Limit::perMinute(20)->by((string) $request->ip()));
     }
 
     protected function registerViews(): void

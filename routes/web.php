@@ -7,15 +7,27 @@ use App\Http\Controllers\ProfilePhotoController;
 use App\Livewire\Admin\CreateTrainerForm;
 use App\Livewire\Admin\EditUserForm;
 use App\Livewire\Admin\UsersTable;
+use App\Livewire\Join\RedeemShareLink;
 use App\Livewire\ProfileForm;
+use App\Livewire\Trainer\Coaches;
+use App\Livewire\Trainer\ShareLinks;
 use Illuminate\Support\Facades\Route;
 
 // Fortify owns login, logout, password reset and email verification.
-// Registration is disabled (AD-004): the only registration surface is /join/{code}, in Slice B.
+// Registration is disabled (AD-004): /join/{code} below is the only surface that creates accounts.
 
 Route::get('/', function () {
     return redirect()->route('dashboard');
 });
+
+// Deliberately outside the `auth` group: a guest following an invitation is the common case, and
+// the component branches on whether anyone is logged in. The ShareLink is the precondition of the
+// form existing, so there is no route here whose only job is to refuse (AD-004).
+// Throttled: a player link is permanent and unlimited-use (BR-008), so one leaked code would
+// otherwise mean unbounded account creation and unbounded verification mail from this domain.
+Route::get('/join/{code}', RedeemShareLink::class)
+    ->middleware('throttle:join')
+    ->name('join');
 
 Route::middleware(['auth'])->group(function (): void {
     // Not behind `verified`: a user must be able to reach their profile and the verification
@@ -32,6 +44,11 @@ Route::middleware(['auth'])->group(function (): void {
         Route::get('/dashboard', DashboardController::class)->name('dashboard');
 
         Route::view('/trainer', 'dashboards.trainer')->middleware('role:trainer')->name('trainer.dashboard');
+
+        Route::prefix('trainer')->name('trainer.')->middleware('role:trainer')->group(function (): void {
+            Route::get('/share-links', ShareLinks::class)->name('share-links');
+            Route::get('/coaches', Coaches::class)->name('coaches');
+        });
         Route::view('/coach', 'dashboards.coach')->middleware('role:coach')->name('coach.dashboard');
         Route::view('/player', 'dashboards.player')->middleware('role:player')->name('player.dashboard');
 
