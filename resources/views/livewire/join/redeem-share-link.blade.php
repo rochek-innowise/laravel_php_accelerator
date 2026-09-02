@@ -16,6 +16,11 @@
             </h1>
 
             @auth
+                @if ($blocked)
+                    <p class="mt-3 text-sm text-ink-soft" role="alert">
+                        Ask your parent to register you with this trainer. We've let them know you tried.
+                    </p>
+                @else
                 <p class="mt-3 text-sm text-ink-soft">
                     You are signed in as {{ auth()->user()->email }}. Joining adds this organisation to your
                     account — it never creates a second one.
@@ -48,6 +53,7 @@
                 @endif
 
                 <button type="button" wire:click="join" class="btn mt-6">Join {{ $trainer?->business_name }}</button>
+                @endif
             @endauth
 
             @guest

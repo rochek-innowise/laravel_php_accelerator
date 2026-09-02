@@ -29,6 +29,10 @@
                 <livewire:context.trainer-switcher />
                 <livewire:context.profile-switcher />
 
+                {{-- Slice C's first database-channel notifications (AD-011): approvals and a
+                     blocked ShareLink both land here for whichever family member is looking. --}}
+                <livewire:family.notification-bell />
+
                 <p class="hidden text-sm font-medium text-field lg:block">{{ auth()->user()->name }}</p>
 
                 <x-ui.role-tag :role="auth()->user()->role" inverted />
@@ -59,6 +63,16 @@
 
                     <x-ui.nav-link :href="route('trainer.share-links')" :active="request()->routeIs('trainer.share-links')">
                         Invitation link
+                    </x-ui.nav-link>
+                @endif
+
+                @if (auth()->user()->role === \App\Enums\Role::Player)
+                    <x-ui.nav-link :href="route('family.index')" :active="request()->routeIs('family.*')">
+                        Family
+                    </x-ui.nav-link>
+
+                    <x-ui.nav-link :href="route('approvals.index')" :active="request()->routeIs('approvals.index')">
+                        Approvals
                     </x-ui.nav-link>
                 @endif
 

@@ -148,6 +148,16 @@ class User extends Authenticatable implements MustVerifyEmail
     }
 
     /**
+     * Clears the memoized set above. A child profile created earlier in the same request is
+     * otherwise invisible to the very association step that is supposed to enrol it —
+     * `trainableProfiles()` cached the family before the new row existed (Slice C plan, Decision 8).
+     */
+    public function resetTrainableProfilesCache(): void
+    {
+        $this->trainableProfiles = null;
+    }
+
+    /**
      * A non-active account gets no reset link. The broker still reports success, so the response
      * stays identical for every address and no account-enumeration oracle appears.
      */

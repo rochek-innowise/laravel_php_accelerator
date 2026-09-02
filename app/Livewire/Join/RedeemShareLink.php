@@ -12,6 +12,7 @@ use App\Http\Middleware\EnsureTrainerContext;
 use App\Models\PlayerProfile;
 use App\Models\ShareLink;
 use App\Models\User;
+use App\Notifications\ChildShareLinkBlocked;
 use Illuminate\Auth\Events\Registered;
 use Illuminate\Contracts\View\View;
 use Illuminate\Support\Collection;
@@ -55,6 +56,9 @@ class RedeemShareLink extends Component
 
     public bool $joined = false;
 
+    /** FR-011: a child login is refused with friendly copy, not a bare 403. */
+    public bool $blocked = false;
+
     public function mount(string $code): void
     {
         $this->code = $code;
@@ -88,6 +92,16 @@ class RedeemShareLink extends Component
         abort_unless($user instanceof User, 403);
         abort_unless($this->isRedeemable(), 410);
 
+        // FR-011: a child account never joins on its own. This used to fall through to the
+        // `trainer.associate` gate below and render as a bare 403 — deliberately replaced with
+        // friendly copy plus a guardian notification carrying the link, so the child is told what
+        // to do next rather than met with a wall.
+        if ($user->is_child_account) {
+            $this->blockChildJoin($user);
+
+            return;
+        }
+
         // A child with its own login may view its associations but never add one (FR-011). The
         // deny list is the single source; this is the gate reading it, not a second rule.
         $this->authorize('trainer.associate');
@@ -115,6 +129,24 @@ class RedeemShareLink extends Component
         $this->joined = true;
 
         $this->redirectRoute('dashboard', navigate: true);
+    }
+
+    /**
+     * No exception, no association row — just the FR-011 refusal plus a notification carrying the
+     * link, so a guardian can complete the registration themselves.
+     */
+    protected function blockChildJoin(User $user): void
+    {
+        $profile = $user->playerProfile;
+        $link = $this->link;
+
+        if ($profile !== null && $link !== null) {
+            $profile->guardians->each(
+                fn (User $guardian) => $guardian->notify(new ChildShareLinkBlocked($link, $profile))
+            );
+        }
+
+        $this->blocked = true;
     }
 
     /** Guest branch: create the account, its self profile, then associate. */

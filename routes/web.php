@@ -7,6 +7,9 @@ use App\Http\Controllers\ProfilePhotoController;
 use App\Livewire\Admin\CreateTrainerForm;
 use App\Livewire\Admin\EditUserForm;
 use App\Livewire\Admin\UsersTable;
+use App\Livewire\Family\ChildForm;
+use App\Livewire\Family\Overview as FamilyOverview;
+use App\Livewire\Family\PendingApprovals;
 use App\Livewire\Join\RedeemShareLink;
 use App\Livewire\ProfileForm;
 use App\Livewire\Trainer\Coaches;
@@ -51,6 +54,17 @@ Route::middleware(['auth'])->group(function (): void {
         });
         Route::view('/coach', 'dashboards.coach')->middleware('role:coach')->name('coach.dashboard');
         Route::view('/player', 'dashboards.player')->middleware('role:player')->name('player.dashboard');
+
+        // FR-008/FR-009/FR-010. Reached through identity relations, never a tenant-scoped query
+        // (see the Slice C plan's Existing Context), so no `tenant` alias is needed here.
+        Route::middleware('role:player')->group(function (): void {
+            Route::prefix('family')->name('family.')->group(function (): void {
+                Route::get('/', FamilyOverview::class)->name('index');
+                Route::get('/children/create', ChildForm::class)->name('children.create');
+            });
+
+            Route::get('/approvals', PendingApprovals::class)->name('approvals.index');
+        });
 
         Route::prefix('admin')->name('admin.')->middleware('role:super_admin')->group(function (): void {
             Route::get('/users', UsersTable::class)->name('users.index');

@@ -13,6 +13,7 @@ use App\Models\ShareLink;
 use App\Models\TrainerPlayer;
 use App\Models\TrainerProfile;
 use App\Models\User;
+use App\Notifications\ChildShareLinkBlocked;
 use App\Notifications\JoinedTrainer;
 use Illuminate\Support\Facades\Notification;
 use Livewire\Livewire;
@@ -111,19 +112,28 @@ final class RedeemShareLinkTest extends TestCase
         $this->assertDatabaseHas('trainer_players', ['player_profile_id' => $self->id]);
     }
 
+    /**
+     * FR-011, deliberately changed in Slice C: this used to assert a bare 403. A child account is
+     * now told what to do next instead of met with a wall, and every guardian is notified with the
+     * link so they can complete the registration themselves — the ordinary checklist flow above,
+     * nothing new on their side.
+     */
     #[Test]
-    public function a_child_account_cannot_join_an_organisation(): void
+    public function a_child_account_is_blocked_with_friendly_copy_and_guardians_are_notified(): void
     {
-        [$child, $profile] = $this->childWithProfile();
+        Notification::fake();
+        [$child, $profile, $guardian] = $this->childWithProfile();
         $link = $this->playerLink();
 
         Livewire::actingAs($child)
             ->test(RedeemShareLink::class, ['code' => $link->code])
             ->set('selectedProfileIds', [$profile->id])
             ->call('join')
-            ->assertForbidden();
+            ->assertOk()
+            ->assertSee('Ask your parent to register you with this trainer');
 
         $this->assertDatabaseCount('trainer_players', 0);
+        Notification::assertSentTo($guardian, ChildShareLinkBlocked::class);
     }
 
     #[Test]
@@ -268,11 +278,14 @@ final class RedeemShareLinkTest extends TestCase
         return [$user, PlayerProfile::factory()->selfProfile($user)->create()];
     }
 
-    /** @return array{0: User, 1: PlayerProfile} */
+    /** @return array{0: User, 1: PlayerProfile, 2: User} */
     protected function childWithProfile(): array
     {
         $child = User::factory()->childAccount()->create();
+        $guardian = User::factory()->create();
 
-        return [$child, PlayerProfile::factory()->child()->create(['user_id' => $child->id])];
+        $profile = PlayerProfile::factory()->child()->guardedBy($guardian)->create(['user_id' => $child->id]);
+
+        return [$child, $profile, $guardian];
     }
 }

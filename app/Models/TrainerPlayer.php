@@ -12,6 +12,7 @@ use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\SoftDeletes;
+use Illuminate\Support\Carbon;
 
 // Tenant-owned (AD-001), and the row that decides reachability: a person is inside an organisation
 // because this row exists, not because of any column on the person.
@@ -20,7 +21,11 @@ use Illuminate\Database\Eloquent\SoftDeletes;
 // `share_link_id` all decide *whose* data this is, which is precisely the NFR-010 breach a stray
 // update($request->validated()) would open. The actions set them through the relationship.
 /**
+ * @property int $trainer_profile_id
+ * @property int $player_profile_id
  * @property TrainerPlayerStatus $status
+ * @property Carbon $connected_at
+ * @property Carbon|null $deleted_at
  */
 #[Fillable(['status'])]
 class TrainerPlayer extends Model

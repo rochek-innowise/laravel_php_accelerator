@@ -12,11 +12,15 @@ use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\BelongsToMany;
 use Illuminate\Database\Eloquent\Relations\HasMany;
+use Illuminate\Support\Carbon;
 
 // Identity, never tenant-scoped (AD-001): a trainer's roster is a query over trainer_players.
 // `user_id` is not mass-assignable: a request-supplied login would let one account claim
 // another family's child. Attach guardians through the guardians() relation.
 /**
+ * @property int|null $user_id
+ * @property string $name
+ * @property Carbon|null $birth_date
  * @property bool $is_child
  * @property bool $token_spend_requires_approval
  */
