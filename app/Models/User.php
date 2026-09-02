@@ -4,8 +4,10 @@ declare(strict_types=1);
 
 namespace App\Models;
 
+use App\Enums\CoachStatus;
 use App\Enums\Role;
 use App\Enums\UserStatus;
+use App\Support\Tenancy\TenantScope;
 use Database\Factories\UserFactory;
 use Illuminate\Contracts\Auth\MustVerifyEmail;
 use Illuminate\Database\Eloquent\Attributes\Fillable;
@@ -16,6 +18,7 @@ use Illuminate\Database\Eloquent\Relations\BelongsToMany;
 use Illuminate\Database\Eloquent\Relations\HasOne;
 use Illuminate\Foundation\Auth\User as Authenticatable;
 use Illuminate\Notifications\Notifiable;
+use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\URL;
 
 // `role`, `status` and `is_child_account` are deliberately absent: they decide privilege, and a
@@ -40,6 +43,9 @@ class User extends Authenticatable implements MustVerifyEmail
 {
     /** @use HasFactory<UserFactory> */
     use HasFactory, Notifiable;
+
+    /** @var Collection<int, PlayerProfile>|null */
+    protected ?Collection $trainableProfiles = null;
 
     /**
      * Get the attributes that should be cast.
@@ -76,10 +82,26 @@ class User extends Authenticatable implements MustVerifyEmail
         return $this->hasOne(TrainerProfile::class);
     }
 
-    /** @return HasOne<CoachProfile, $this> */
+    /**
+     * The coach's current employment row.
+     *
+     * Deliberately tenant-blind: this is keyed on the coach's own `user_id`, an identity read with
+     * no cross-tenant reach, and it is what resolves the coach's context in the first place —
+     * scoping it would make the resolution circular.
+     *
+     * The ordering is not cosmetic. A released coach keeps their old row as history (G-11) and
+     * gains a second one when re-hired, so an unordered `hasOne` returns whichever the engine
+     * reaches first — in practice the oldest, released row, leaving a legitimately re-hired coach
+     * with no tenant and, under fail-closed tenancy, an empty screen on every request.
+     *
+     * @return HasOne<CoachProfile, $this>
+     */
     public function coachProfile(): HasOne
     {
-        return $this->hasOne(CoachProfile::class);
+        return $this->hasOne(CoachProfile::class)
+            ->withoutGlobalScope(TenantScope::class)
+            ->orderByRaw('CASE WHEN status = ? THEN 0 ELSE 1 END', [CoachStatus::Active->value])
+            ->orderByDesc('id');
     }
 
     /** People this user is responsible for — children, not their own self profile. */
@@ -102,6 +124,27 @@ class User extends Authenticatable implements MustVerifyEmail
     public function playerProfile(): HasOne
     {
         return $this->hasOne(PlayerProfile::class);
+    }
+
+    /**
+     * Everyone this account may act as: their own profile plus the children they guard.
+     *
+     * One source, used by both the "Who will train with X?" checklist and the profile switcher, so
+     * the two can never disagree about who is in the family — the kind of drift that turns into a
+     * child associated with a trainer nobody chose.
+     *
+     * Memoized per instance: this costs two queries, and it is read by the context middleware and
+     * by both switchers on the same request. Without the cache a single page load paid for it
+     * three times over.
+     *
+     * @return Collection<int, PlayerProfile>
+     */
+    public function trainableProfiles(): Collection
+    {
+        return $this->trainableProfiles ??= $this->playerProfile()->get()
+            ->concat($this->guardedPlayerProfiles()->get())
+            ->unique('id')
+            ->values();
     }
 
     /**
