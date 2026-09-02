@@ -6,7 +6,7 @@ A multi-tenant Laravel platform where independent trainers run their training or
 
 | File | Purpose | Depends On | Last Updated |
 |------|---------|------------|--------------|
-| architect-architecture.md | System design, layering, tenancy, architecture decisions | - | 2026-09-01 |
+| architect-architecture.md | System design, layering, tenancy, architecture decisions | - | 2026-09-02 |
 | api-designer-spec.md | Endpoints, schemas, authentication | architect-architecture | not created — no public API in Epic-01 |
 | frontend-design-spec.md | Pages, components, state management | architect-architecture | not created |
 | docs-generator-implementation.md | Build process, deployment, tooling | - | not created |
@@ -19,6 +19,14 @@ A multi-tenant Laravel platform where independent trainers run their training or
 - **Auth scaffolding**: Fortify + Livewire installed directly (starter kits are `laravel new` templates, not installable here). Fortify registration is **disabled**; the only registration surface is `/join/{code}`.
 - **Epic boundaries**: exactly one interface, `ApprovedPurchaseExecutor`, replaced by Epic-05. No other stubs.
 - **Admin UI**: hand-rolled Livewire for Epic-01; Filament reconsidered at Epic-07.
+- **Tenancy escapes**: two, not one — `Model::withoutTenantScope()` (Super-Admin gated) and
+  `TrainerContext::runAsSystem()` (ungated, for paths that legitimately predate a tenant, such as a
+  guest redeeming an invitation). See the Slice B section of the architecture spec.
+- **Identity relations bypass the scope**: a relation keyed on an identity's own id is an identity
+  read (`User::coachProfile()`, `PlayerProfile::trainerAssociations()`); a query starting at a
+  tenant-owned model is a tenant read. A roster is always the former joined through `TrainerPlayer`.
+- **Player ShareLink**: one active code per organisation; regenerating deactivates the previous one,
+  so revocation is real. BR-008 makes a link unlimited in uses, not immortal as a code.
 - **Real-time**: none. Database notifications + `wire:poll`; Reverb reconsidered at Epic-02.
 - **Runtime**: a queue worker and the scheduler are required processes, not optional ops.
 - **Account status**: enforced on every request, not only at login — a deactivated session ends on

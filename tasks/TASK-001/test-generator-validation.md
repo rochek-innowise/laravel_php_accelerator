@@ -81,6 +81,64 @@ The map records coverage, not correctness.
 | Auth events are audited (login, logout, failure, throttle, forced logout, denial) | NFR-011, A09 | `tests/Feature/Auth/AuthAuditTest.php` | covered — the attempted address is recorded, the submitted password never is |
 | WCAG 2.1 AA | NFR-012 | — | uncovered — needs the real markup, which is the frontend work |
 
+## Slice B — Invitations & Multi-Tenancy
+
+| Requirement | Source | Test | State |
+| --- | --- | --- | --- |
+| A tenant-owned query with no organisation returns nothing, not everything | AD-001 | `tests/Feature/Tenancy/FailClosedScopeTest.php::a_query_with_no_context_returns_no_rows` | covered — the property every other isolation guarantee rests on |
+| A tenant-owned write with no organisation fails loudly | AD-001 | `FailClosedScopeTest::creating_without_a_context_throws_rather_than_writing_an_unowned_row` | covered |
+| The admin escape hatch is Super-Admin only | AD-003 | `FailClosedScopeTest::without_tenant_scope_is_refused_to_a_non_admin`, `::without_tenant_scope_is_allowed_to_a_super_admin` | covered |
+| Context resolves per role: trainer, active coach, invited coach, admin, player | AD-001 | `tests/Feature/Tenancy/TrainerContextResolutionTest.php` | covered — one case per rule, including both negative coach cases |
+| A revoked association stops resolving on the next request | AD-001 | `TrainerContextResolutionTest::a_revoked_association_stops_resolving_on_the_next_request` | covered — the session is re-validated, never trusted |
+| A guardian reaches their children's organisations | FR-007, AD-019 | `TrainerContextResolutionTest::a_guardian_reaches_the_organisations_of_the_children_they_guard` | covered |
+| Player links are unlimited and never expire | BR-008 | `tests/Feature/Trainer/ShareLinkTest.php::a_trainer_gets_a_static_unlimited_link` | covered |
+| Codes are high-entropy and unique | BR-008, risk register | `ShareLinkTest::the_code_is_high_entropy_and_unique` | partial — length and uniqueness over 25 mints; entropy itself is `random_bytes`, a platform guarantee |
+| Regenerating a link revokes the previous code | BR-008 | `ShareLinkTest::regenerating_deactivates_the_previous_code` | covered |
+| A trainer never sees another organisation's links | NFR-010 | `ShareLinkTest::a_trainer_cannot_see_another_organisations_links` | covered |
+| A guest registers through the link and is associated | FR-007 | `tests/Feature/Join/RedeemShareLinkTest.php::a_guest_registers_and_is_associated` | covered |
+| An existing account joins a second organisation, never a duplicate account | BR-007 | `RedeemShareLinkTest::an_existing_account_joins_a_second_organisation_without_a_duplicate_account` | covered |
+| Redeeming twice is idempotent | BR-007 | `RedeemShareLinkTest::redeeming_the_same_link_twice_is_idempotent` | covered |
+| A parent enrols only the selected family members | BR-023 | `RedeemShareLinkTest::a_parent_enrols_only_the_selected_family_members` | covered |
+| A submitted profile outside the family is ignored | FR-007, NFR-010 | `RedeemShareLinkTest::a_profile_outside_the_family_is_ignored` | covered — inert, not an error the client can probe |
+| A child account cannot join an organisation | FR-011 | `RedeemShareLinkTest::a_child_account_cannot_join_an_organisation` | covered — through the existing deny list, not a second rule |
+| Inactive, expired and unknown codes are refused | FR-007 | `RedeemShareLinkTest::an_inactive_link_cannot_be_redeemed`, `::an_expired_link_cannot_be_redeemed`, `::an_unknown_code_shows_the_invalid_screen_rather_than_a_404` | covered — all four failure modes give one message, so codes cannot be probed |
+| A single-use link is spent by its first redemption | BR-009 | `RedeemShareLinkTest::a_single_use_link_is_spent_by_its_first_redemption`, `::a_single_use_link_cannot_be_redeemed_twice` | covered — the second redemption is refused under `lockForUpdate` |
+| A redemption that enrols nobody does not spend the link | NFR-004 | `RedeemShareLinkTest::a_redemption_that_enrols_nobody_does_not_spend_the_link` | covered |
+| Joining sets the new organisation as the active context | FR-007 | `RedeemShareLinkTest::joining_sets_the_new_organisation_as_the_active_context` | covered |
+| The confirmation email is sent | FR-007 | `RedeemShareLinkTest::the_confirmation_email_is_sent` | covered — queued after commit, so a rolled-back join mails nothing |
+| Coach links are single-use with a 7-day expiry | BR-009 | `tests/Feature/Trainer/CoachInvitationTest.php::an_invitation_is_single_use_and_expires_in_seven_days` | covered |
+| **A coach is active under exactly one organisation** | BR-006 | `CoachInvitationTest::the_database_refuses_a_second_active_row_for_one_coach` | covered **at the database** — the insert bypasses every action, so the generated column and its unique index are what is being asserted |
+| Many historical coach rows are permitted | BR-006 | `CoachInvitationTest::the_database_permits_many_inactive_rows_for_one_coach` | covered |
+| A coach active elsewhere cannot accept, and inviting them is a field error | FR-013, BR-006 | `CoachInvitationTest::a_coach_active_elsewhere_cannot_accept_a_second_invitation`, `::inviting_an_already_active_coach_is_a_field_error_not_a_server_error` | covered — never a 500 |
+| A released coach may join another organisation | G-11 | `CoachInvitationTest::a_released_coach_may_join_another_organisation` | covered — history retained |
+| A forwarded invitation cannot be accepted by another address | FR-013 | `CoachInvitationTest::an_invitation_cannot_be_accepted_by_a_different_address` | covered |
+| Resending supersedes the previous link | FR-013 | `CoachInvitationTest::resending_supersedes_the_previous_link` | covered |
+| The switcher lists every organisation the family joined | FR-007 | `tests/Feature/Tenancy/ContextSwitcherTest.php::a_parent_sees_every_organisation_the_family_joined` | covered |
+| Switching to an unjoined organisation is refused | NFR-010 | `ContextSwitcherTest::switching_to_an_organisation_the_family_never_joined_is_refused` | covered — refused, not silently ignored |
+| Trainers and coaches see no switcher | Design, two switchers | `ContextSwitcherTest::a_trainer_sees_no_switcher`, `::a_coach_sees_no_switcher` | covered |
+| The switcher reveals name and logo only | G-08 | `ContextSwitcherTest::the_switcher_reads_only_the_membership_and_the_organisation_name` | covered — asserted against the tables the queries read, not the rendered copy |
+| The profile switcher lists only members training here | Design, two switchers | `ContextSwitcherTest::the_profile_switcher_lists_only_members_training_in_this_organisation` | covered |
+| Cross-organisation rows are invisible, per tenant-owned model | NFR-010, AD-011 | `tests/Feature/Tenancy/IsolationMatrixTest.php` | covered — data-provider matrix over `CoachProfile`, `ShareLink`, `TrainerPlayer`, plus an HTTP-level 404-by-construction case |
+| A roster never reads `PlayerProfile` directly | AD-001 | `IsolationMatrixTest::a_trainers_roster_never_reads_player_profiles_directly` | covered |
+| A queued job resolves its own tenant, and one that does not silently no-ops | AD-002, AD-021 | `tests/Feature/Tenancy/QueuedJobTenancyTest.php` | covered — **both** halves, so the failure mode is documented executably |
+| The seeded scenario stays isolated with one child in two organisations | BR-005 | `tests/Feature/Tenancy/DemoScenarioTest.php` | covered |
+| ShareLink usage is tracked per link | BR-021 | `RedeemShareLinkTest::a_single_use_link_is_spent_by_its_first_redemption` | partial — `uses_count` increments; the analytics surface is Epic-06 |
+| A coach invitation cannot demote a Super Admin or a Trainer | Review F1 | `tests/Feature/Trainer/CoachLifecycleTest.php::a_super_admin_cannot_be_demoted_by_a_coach_invitation`, `::a_trainer_cannot_be_demoted_by_a_coach_invitation` | covered — asserts the role *and* that the refusal does not spend the link |
+| A re-hired coach resolves to their current employer | G-11, Review F2 | `CoachLifecycleTest::a_rehired_coach_resolves_to_their_new_organisation` | covered — the two-row history and the resolved tenant are both asserted; the earlier test passed through this gap by checking only the returned profile |
+| resend() refuses a player-link id | Review F3 | `CoachLifecycleTest::resend_refuses_a_player_link_id` | covered — 404 by construction, and the player link survives |
+| A resend that cannot issue a replacement leaves the original | Review F10 | `CoachLifecycleTest::an_invitation_survives_a_resend_that_fails` | covered |
+| Invited addresses match case-insensitively | Review F7 | `CoachLifecycleTest::an_invitation_matches_the_address_case_insensitively` | covered |
+| An unverified account cannot accept a coaching invitation | Q-01.05a, Review F7 | `CoachLifecycleTest::an_unverified_account_cannot_accept`, `tests/Feature/Join/JoinHardeningTest.php::a_guest_following_a_coach_link_is_registered_but_not_enrolled` | covered |
+| Inviting a coach who already works here says so | Review F11 | `CoachLifecycleTest::inviting_a_coach_who_already_works_here_says_so` | covered |
+| Registration sends the verification email | FR-003 | `JoinHardeningTest::registering_sends_the_verification_email` | covered — nothing dispatched `Registered` before, so no account ever received one |
+| Emails are stored lowercased | Review F7 | `JoinHardeningTest::the_email_is_stored_lowercased` | covered |
+| Account creation from one address is rate limited | NFR-007, Review F6 | `JoinHardeningTest::repeated_registrations_from_one_address_are_throttled` | covered — the limiter inside the component, which is where the writes actually arrive |
+| A link spent before submission creates no account | Review F5 | `JoinHardeningTest::a_link_spent_before_submission_creates_no_account` | partial — the guard is asserted; the narrower lost-race path the surrounding transaction covers cannot be produced from one process |
+| runFor nested inside runAsSystem is scoped again | Review F9 | `tests/Unit/Tenancy/TenantContextTest.php::run_for_nested_inside_run_as_system_is_scoped_again` | covered |
+| Tenancy resolution happens once per request | NFR-002, Review F4 | `tests/Feature/Tenancy/TenancyQueryBudgetTest.php` | covered — a budget, not an exact count: a regression here shows up as a multiple |
+| Opening the share-links screen commits nothing | Review F11 | `tests/Feature/Trainer/ShareLinkTest.php::opening_the_screen_never_mints_a_link` | covered — a GET carries no CSRF token |
+| Migration `down()` methods | — | — | **uncovered** — `migrate:rollback` and `migrate:fresh` are blocked by `.claude/hooks/bash-validator.sh`, so the generated-column teardown has never run |
+
 ## Notes
 
 - The suite runs against **MariaDB**, not SQLite (AD-013), so migrations are exercised on the

@@ -14,6 +14,83 @@
     "type": "finding"
   },
   {
+    "id": "3c0b6b6b-9bb8-4cdf-a9d6-09f2ebdbebc3",
+    "path": "project-brain/dynamic/findings/3c0b6b6b-9bb8-4cdf-a9d6-09f2ebdbebc3.md",
+    "revision": 2,
+    "status": "resolved",
+    "type": "finding"
+  },
+  {
+    "id": "45e17369-ca37-4b61-ae13-22f73c1cff3b",
+    "path": "project-brain/dynamic/findings/45e17369-ca37-4b61-ae13-22f73c1cff3b.md",
+    "revision": 2,
+    "status": "resolved",
+    "type": "finding"
+  },
+  {
+    "id": "4dc71090-9df3-46c5-b52d-62a9c69b147e",
+    "path": "project-brain/dynamic/findings/4dc71090-9df3-46c5-b52d-62a9c69b147e.md",
+    "revision": 2,
+    "status": "resolved",
+    "type": "finding"
+  },
+  {
+    "id": "517a2aae-9228-463e-ad6a-d98411fe6296",
+    "path": "project-brain/dynamic/findings/517a2aae-9228-463e-ad6a-d98411fe6296.md",
+    "revision": 2,
+    "status": "resolved",
+    "type": "finding"
+  },
+  {
+    "id": "559a2356-7e2f-43a0-8290-b4f7ac3c80ea",
+    "path": "project-brain/dynamic/findings/559a2356-7e2f-43a0-8290-b4f7ac3c80ea.md",
+    "revision": 2,
+    "status": "resolved",
+    "type": "finding"
+  },
+  {
+    "id": "7a398ba0-134d-4207-abb6-2c8d0ce2dac1",
+    "path": "project-brain/dynamic/findings/7a398ba0-134d-4207-abb6-2c8d0ce2dac1.md",
+    "revision": 2,
+    "status": "resolved",
+    "type": "finding"
+  },
+  {
+    "id": "87e18615-e307-4dab-85ff-249facf3542b",
+    "path": "project-brain/dynamic/findings/87e18615-e307-4dab-85ff-249facf3542b.md",
+    "revision": 2,
+    "status": "resolved",
+    "type": "finding"
+  },
+  {
+    "id": "a35ad9a0-11cd-4cd6-a4bc-d5aa44e5ac20",
+    "path": "project-brain/dynamic/findings/a35ad9a0-11cd-4cd6-a4bc-d5aa44e5ac20.md",
+    "revision": 2,
+    "status": "resolved",
+    "type": "finding"
+  },
+  {
+    "id": "b016a4c6-5e13-4e83-962f-7671c45f8e54",
+    "path": "project-brain/dynamic/findings/b016a4c6-5e13-4e83-962f-7671c45f8e54.md",
+    "revision": 2,
+    "status": "resolved",
+    "type": "finding"
+  },
+  {
+    "id": "d79b305c-3e28-4a00-b2c6-2a65774dfbdc",
+    "path": "project-brain/dynamic/findings/d79b305c-3e28-4a00-b2c6-2a65774dfbdc.md",
+    "revision": 2,
+    "status": "resolved",
+    "type": "finding"
+  },
+  {
+    "id": "f267aa7e-6f91-498c-a203-f8f340311466",
+    "path": "project-brain/dynamic/findings/f267aa7e-6f91-498c-a203-f8f340311466.md",
+    "revision": 2,
+    "status": "resolved",
+    "type": "finding"
+  },
+  {
     "id": "fcadf3e6-0767-40c9-bed7-8ccaf6bc8721",
     "path": "project-brain/dynamic/findings/fcadf3e6-0767-40c9-bed7-8ccaf6bc8721.md",
     "revision": 4,
@@ -23,14 +100,21 @@
   {
     "id": "9f844a31-daae-4910-b1d8-aaa6739f6d2b",
     "path": "project-brain/dynamic/tasks/9f844a31-daae-4910-b1d8-aaa6739f6d2b.md",
-    "revision": 6,
+    "revision": 7,
+    "status": "active",
+    "type": "task"
+  },
+  {
+    "id": "e5588cd6-cc43-4a34-b833-5747604b2ebd",
+    "path": "project-brain/dynamic/tasks/e5588cd6-cc43-4a34-b833-5747604b2ebd.md",
+    "revision": 2,
     "status": "active",
     "type": "task"
   },
   {
     "id": "ff9cb3b1-80dc-4860-a94c-b3375a3fd45a",
     "path": "project-brain/dynamic/tasks/ff9cb3b1-80dc-4860-a94c-b3375a3fd45a.md",
-    "revision": 3,
+    "revision": 4,
     "status": "active",
     "type": "task"
   }

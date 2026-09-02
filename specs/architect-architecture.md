@@ -324,3 +324,105 @@ Ruling: the suite runs against a MariaDB test database in DDEV. An in-memory SQL
 - **ShareLink codes must be high-entropy** — a player link is permanent and unlimited-use (BR-008), so a guessable code is a permanent unauthorized route into a roster.
 - **SVG logo uploads** (permitted by FR-019) are an XSS vector served to every user in the organization. Pending a product call; restrict to PNG/JPG or sanitize before storage.
 - **Epic-02/05 coupling**: the approval domain ships fully tested against a test double but has no checkout UI until events exist. Slice C's demo is the parent queue, not a purchase.
+
+---
+
+## [TASK-001] Slice B — Tenancy, Invitations And Associations (implemented)
+
+What the code does now, where it diverged from the plan, and why. Slices C and D are unchanged.
+
+### Two escape hatches, not one
+
+AD-001 describes a single escape from `TenantScope`, gated on Super Admin. The implementation has
+**two**, because a guest redeeming an invitation has no organisation and no admin:
+
+| Escape | Call site | Gate |
+|---|---|---|
+| `Model::withoutTenantScope()` | Admin inspection (AD-003) | Throws unless the actor is a Super Admin |
+| `TrainerContext::runAsSystem(Closure)` | ShareLink lookup, coach-status checks, the switcher's own membership query, system jobs | None — explicit and greppable by design |
+
+Both are deliberately noisy to read. `runAsSystem` is the one to scrutinise in review: it is
+reachable without authentication, so every call site must be a path that legitimately predates a
+tenant. There are five today.
+
+### Coach employment is a history of rows, so the relation must be ordered
+
+A released coach keeps their row (G-11) and gains a second one on re-hire, so `coach_profiles` holds
+one row per employment rather than one per coach. `User::coachProfile()` therefore orders the active
+row first: an unordered `hasOne` returned the oldest, released row, which resolved to no tenant and —
+under fail-closed tenancy — gave a legitimately re-hired coach an empty screen on every request.
+
+`CoachProfilePolicy::view/update` grant on `$user->id === $coachProfile->user_id`, which is correct
+against that multi-row reality (a coach may read their own history), but any future write path must
+target the active row explicitly rather than "the" profile.
+
+### Identity relations stay tenant-blind
+
+`CoachProfile` and `TrainerPlayer` are tenant-owned, but three relations keyed on an identity's own
+primary key bypass the scope, and the distinction is the load-bearing part:
+
+- `User::coachProfile()` — a coach reading their own row, and the query that *resolves* their tenant.
+  Scoping it would make context resolution circular.
+- `PlayerProfile::trainerAssociations()` — one person's memberships across organisations; the data
+  behind the family view and the trainer switcher.
+
+The rule that emerged: **a relation keyed on an identity's own id is an identity read; a query that
+begins at `TrainerPlayer::query()` or `CoachProfile::query()` is a tenant read.** A trainer's roster
+must therefore be `$trainer->playerProfiles()` (through the association), never `PlayerProfile::query()`
+— asserted by `IsolationMatrixTest::a_trainers_roster_never_reads_player_profiles_directly`.
+
+### Middleware placement
+
+`EnsureTrainerContext` is appended to the **`web` group**, not to the `verified` route group as
+planned. Livewire's update endpoint is not inside the route group, so a component that rendered
+correctly on first paint would return an empty list on its next round trip. This mirrors the reason
+`EnsureAccountRemainsActive` sits there.
+
+### Policy scope, narrowed
+
+The tenancy branch answers exactly one question — *is the resolved organisation this trainer's own?*
+An earlier draft also required the trainer to have a profile at all; that is a data-integrity
+question, not an authorisation one, and it broke a passing Slice A test. Left to the action, which
+cannot mint a link without a profile anyway.
+
+### Who may accept a coaching invitation
+
+Acceptance rewrites `users.role`, so it is gated twice. Only a `Player` or an existing `Coach` may
+accept — a Super Admin who followed a forwarded link was otherwise demoted and lost `isSuperAdmin()`
+with no path back, and a Trainer was demoted while their `TrainerProfile` survived, orphaning the
+organisation. Acceptance also requires a **verified** address: the `target_email` comparison is
+worthless against an address the redeemer typed in seconds earlier, and a wrong acceptance both
+takes the BR-006 slot and spends the single-use link.
+
+The consequence for the guest flow: following a coach link creates the account and sends the
+verification mail, but does **not** enrol. The coach verifies and reopens the link. This is
+Q-01.05a applied consistently — verification is required to act, and joining a staff is acting.
+
+### Rate limiting lives in two places
+
+`/join/{code}` is a GET, so `throttle:join` on the route bounds code probing only. The writes arrive
+on Livewire's update endpoint, which no route-level limiter can reach, so account creation is
+limited inside the component under the same limiter name. A route limiter alone would have looked
+like protection while protecting nothing.
+
+### Verified by the database, not the code
+
+`coach_profiles.active_user_id` is a MariaDB generated column (`IF(status='active', user_id, NULL)`)
+with a unique index. `CoachInvitationTest` asserts it by inserting through the query builder,
+bypassing every action: if the index were dropped, only that test would notice.
+
+### Tenancy resolution is resolved once per request
+
+`ResolvesAvailableTenants` answers "which organisations can this account reach?" for both the
+middleware and the trainer switcher, caching the result on `TrainerContext`; `User::trainableProfiles()`
+is memoized per instance. Before that, the middleware and both switchers each derived the whole
+membership set independently and a player page load cost 11 queries, nine of them the same three
+repeated. It is now 4, held by `TenancyQueryBudgetTest`.
+
+`TrainerContext` is bound `scoped`, not `singleton`: it now carries that cache, and the middleware
+only ever *sets* a context — it never clears one, so on a persistent runtime a guest request reusing
+a worker would inherit the previous user's tenant.
+
+**Not verified:** migration `down()` methods still have not been executed — the project's bash
+validator blocks `migrate:rollback` and `migrate:fresh`, so the generated-column teardown (which
+must drop the index before the column) is unexercised. See `MEM-20260902-fcadf3e6`.

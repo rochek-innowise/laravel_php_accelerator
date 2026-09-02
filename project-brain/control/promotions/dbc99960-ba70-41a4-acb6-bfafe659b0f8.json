@@ -1,0 +1,26 @@
+{
+  "conflicts": [],
+  "content": "Fixed in 7f9a20d: the mail links to the password-request form, so the trainer mints a token when ready. Cost accepted: one extra step, and no email verification via the link. Recorded as AD-017.",
+  "created_at": "2026-09-02T14:17:27.939865+00:00",
+  "destination_memory_id": "MEM-20260902-94593984",
+  "destination_revision": 1,
+  "id": "dbc99960-ba70-41a4-acb6-bfafe659b0f8",
+  "outcome": "promoted",
+  "proposer": "local",
+  "review_mode": "automatic",
+  "reviewed_at": "2026-09-02T14:17:27.941739+00:00",
+  "reviewer": null,
+  "revision": 3,
+  "schema_version": 1,
+  "source_records": [
+    {
+      "id": "94593984-a9a1-4863-b1c0-b8899778949e",
+      "path": "project-brain/archive/finding/94593984-a9a1-4863-b1c0-b8899778949e.md",
+      "revision": 2,
+      "type": "finding"
+    }
+  ],
+  "status": "applied",
+  "title": "Trainer invitation link expired 60 minutes after creation",
+  "updated_at": "2026-09-02T14:17:27.951666+00:00"
+}

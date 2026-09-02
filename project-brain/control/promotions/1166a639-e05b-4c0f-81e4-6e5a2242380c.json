@@ -1,0 +1,26 @@
+{
+  "conflicts": [],
+  "content": "Fixed in ff48b14: login, logout, failure, throttle, terminated session and denial are all audited. The attempted address is recorded; the submitted password never is.",
+  "created_at": "2026-09-02T14:17:27.954369+00:00",
+  "destination_memory_id": "MEM-20260902-983c61d0",
+  "destination_revision": 1,
+  "id": "1166a639-e05b-4c0f-81e4-6e5a2242380c",
+  "outcome": "promoted",
+  "proposer": "local",
+  "review_mode": "automatic",
+  "reviewed_at": "2026-09-02T14:17:27.956112+00:00",
+  "reviewer": null,
+  "revision": 3,
+  "schema_version": 1,
+  "source_records": [
+    {
+      "id": "983c61d0-473b-4893-8927-b3af31aa6c42",
+      "path": "project-brain/archive/finding/983c61d0-473b-4893-8927-b3af31aa6c42.md",
+      "revision": 2,
+      "type": "finding"
+    }
+  ],
+  "status": "applied",
+  "title": "No logging of auth failures, throttles or authorization denials",
+  "updated_at": "2026-09-02T14:17:27.966104+00:00"
+}

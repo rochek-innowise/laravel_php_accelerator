@@ -1,0 +1,26 @@
+{
+  "conflicts": [],
+  "content": "Fixed in 27c2eea: CONCAT_WS matched as one string, wildcards escaped. Probe before the fix: \"Zinaida Petrenko\" returned 0 rows and \"%\" returned every row.",
+  "created_at": "2026-09-02T14:17:27.897018+00:00",
+  "destination_memory_id": "MEM-20260902-3d68224b",
+  "destination_revision": 1,
+  "id": "08da2c25-ec5e-4ea5-b91a-b4b5e728e47c",
+  "outcome": "promoted",
+  "proposer": "local",
+  "review_mode": "automatic",
+  "reviewed_at": "2026-09-02T14:17:27.899559+00:00",
+  "reviewer": null,
+  "revision": 3,
+  "schema_version": 1,
+  "source_records": [
+    {
+      "id": "3d68224b-07b9-4e30-b86c-e6a330ca95e6",
+      "path": "project-brain/archive/finding/3d68224b-07b9-4e30-b86c-e6a330ca95e6.md",
+      "revision": 2,
+      "type": "finding"
+    }
+  ],
+  "status": "applied",
+  "title": "Users directory search could not match a composed name",
+  "updated_at": "2026-09-02T14:17:27.909076+00:00"
+}
