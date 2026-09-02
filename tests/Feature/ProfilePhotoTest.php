@@ -37,6 +37,10 @@ final class ProfilePhotoTest extends TestCase
         $this->assertNotNull($path);
         Storage::disk('local')->assertExists($path);
         Storage::disk('local')->assertExists(User::thumbnailPathFor($path));
+        // Own namespace, distinct from a PlayerProfile's — `users.id` and `player_profiles.id` are
+        // separate sequences, so a shared directory could otherwise mix an unrelated owner's photo
+        // in under the same id.
+        $this->assertStringContainsString('profile-photos/users/'.$user->id.'/', $path);
     }
 
     /** The thumbnail is square regardless of the source aspect ratio. */

@@ -83,6 +83,28 @@ final class GuardianshipTest extends TestCase
         $this->assertFalse($user->isParent());
     }
 
+    /**
+     * A parent who also trains manages their own self profile's trainer associations exactly the
+     * way `Overview::authorizedChild()`'s self branch already allows — the policy must agree, since
+     * `/family`'s add/remove controls are gated on this ability, not on that method.
+     */
+    public function test_a_user_manages_trainer_associations_on_their_own_self_profile(): void
+    {
+        $user = User::factory()->create();
+        $profile = PlayerProfile::factory()->selfProfile($user)->create();
+
+        $this->assertTrue($user->can('manageTrainerAssociations', $profile));
+    }
+
+    /** FR-011: a child login never manages associations, even on the self profile backing it. */
+    public function test_a_child_login_cannot_manage_trainer_associations_on_its_own_self_profile(): void
+    {
+        $childLogin = User::factory()->childAccount()->create();
+        $profile = PlayerProfile::factory()->selfProfile($childLogin)->create();
+
+        $this->assertFalse($childLogin->can('manageTrainerAssociations', $profile));
+    }
+
     public function test_parenthood_is_emergent_from_guarding_a_child(): void
     {
         $parent = User::factory()->create();

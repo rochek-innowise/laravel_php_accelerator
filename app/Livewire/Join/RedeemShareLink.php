@@ -133,10 +133,21 @@ class RedeemShareLink extends Component
 
     /**
      * No exception, no association row — just the FR-011 refusal plus a notification carrying the
-     * link, so a guardian can complete the registration themselves.
+     * link, so a guardian can complete the registration themselves. The refusal message shows every
+     * time; the notification is throttled per child login the same way
+     * `guardAgainstRegistrationFlooding()` throttles `register()` below, and for the identical
+     * reason — `join()` sits behind Livewire's update endpoint, so a route limiter never sees a
+     * child repeatedly calling it, and each call would otherwise mail and database-notify every
+     * guardian again.
      */
     protected function blockChildJoin(User $user): void
     {
+        $this->blocked = true;
+
+        if ($this->tooManyChildJoinAttempts($user)) {
+            return;
+        }
+
         $profile = $user->playerProfile;
         $link = $this->link;
 
@@ -145,8 +156,24 @@ class RedeemShareLink extends Component
                 fn (User $guardian) => $guardian->notify(new ChildShareLinkBlocked($link, $profile))
             );
         }
+    }
 
-        $this->blocked = true;
+    /**
+     * Keyed on the child's own id, not the IP: unlike `guardAgainstRegistrationFlooding()` (which
+     * guards an anonymous, pre-account endpoint), the actor here is already an authenticated child
+     * login, so there is a real identity to key on rather than a shared address.
+     */
+    protected function tooManyChildJoinAttempts(User $user): bool
+    {
+        $key = 'join:child-blocked:'.$user->getKey();
+
+        if (RateLimiter::tooManyAttempts($key, maxAttempts: 5)) {
+            return true;
+        }
+
+        RateLimiter::hit($key, decaySeconds: 300);
+
+        return false;
     }
 
     /** Guest branch: create the account, its self profile, then associate. */

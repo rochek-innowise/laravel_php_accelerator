@@ -41,7 +41,7 @@ final class CreateChildProfile
         // Checked before any write, like the two guards above: a rate-limited attempt should fail
         // the whole submission rather than roll back a profile the transaction already committed to.
         if ($data->wantsLogin) {
-            $this->guardAgainstLoginCreationFlooding();
+            $this->guardAgainstLoginCreationFlooding($actor);
         }
 
         return DB::transaction(function () use ($actor, $data): PlayerProfile {
@@ -123,16 +123,28 @@ final class CreateChildProfile
      * `Active` `User` creation on arbitrary addresses — which also turns `CreateNewUser`'s
      * `Rule::unique` failure into an email-existence oracle, and lets someone squat a third
      * party's address so it can never register through `/join/{code}` afterwards. Mirrors
-     * `RedeemShareLink::guardAgainstRegistrationFlooding()` exactly rather than inventing a second
-     * mechanism.
+     * `RedeemShareLink::guardAgainstRegistrationFlooding()`, with one addition: the acting
+     * guardian's id joins the IP in the limiter key, not the IP alone, so a club's guardians behind
+     * one NAT address don't share a single budget — one guardian spamming the form no longer locks
+     * every other guardian on the same network out of it.
+     *
+     * The rejection is audited the same way `bootstrap/app.php`'s `ThrottleRequestsException`
+     * handler audits a route-level throttle (`request.throttled`) — this limiter sits below that,
+     * on Livewire's update endpoint, so nothing there ever sees it (`MEM-20260902-983c61d0`).
      *
      * @throws ValidationException
      */
-    private function guardAgainstLoginCreationFlooding(): void
+    private function guardAgainstLoginCreationFlooding(User $actor): void
     {
-        $key = 'family:child-login:'.request()->ip();
+        $ip = request()->ip();
+        $key = 'family:child-login:'.$actor->getKey().':'.$ip;
 
         if (RateLimiter::tooManyAttempts($key, maxAttempts: 5)) {
+            $this->auditLogger->log('family.child-login-throttled', null, [
+                'guardian_user_id' => $actor->getKey(),
+                'ip' => $ip,
+            ]);
+
             throw ValidationException::withMessages([
                 'email' => 'Too many child logins created from here. Try again in a few minutes.',
             ]);

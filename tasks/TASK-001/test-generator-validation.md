@@ -1,12 +1,11 @@
 ---
-description: Which Epic-01 Slice A requirements are held up by which tests.
+description: Which Epic-01 requirements are held up by which tests.
 ---
 
-# Validation Map — TASK-001 Slice A
+# Validation Map — TASK-001 Slices A–C
 
-Scope is Slice A only. Requirements belonging to Slices B–D are out of scope here and are not
-listed as uncovered; requirements that are *in* Slice A and have no test are listed and read
-`uncovered`.
+Scope is Slices A–C. Requirements belonging to Slice D are out of scope here and are not listed as
+uncovered; requirements that are *in* Slices A–C and have no test are listed and read `uncovered`.
 
 The map records coverage, not correctness.
 

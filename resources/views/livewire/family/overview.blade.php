@@ -75,6 +75,7 @@
                                         <option value="{{ $trainer->id }}">{{ $trainer->business_name }}</option>
                                     @endforeach
                                 </select>
+                                <x-slot:error>@error('pickerTrainerId.'.$profile->id){{ $message }}@enderror</x-slot:error>
                             </x-ui.field>
                             <button type="submit" class="btn-ghost">Add</button>
                         </form>

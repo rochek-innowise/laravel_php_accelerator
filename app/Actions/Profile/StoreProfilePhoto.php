@@ -38,7 +38,7 @@ final class StoreProfilePhoto
         $previous = $owner->photo_path;
 
         $extension = $this->extensionFor($upload->getMimeType());
-        $path = config('media.profile_photos.directory').'/'.$owner->getKey().'/'.Str::uuid()->toString().'.'.$extension;
+        $path = config('media.profile_photos.directory').'/'.$this->ownerSegment($owner).'/'.$owner->getKey().'/'.Str::uuid()->toString().'.'.$extension;
 
         $disk->put($path, $upload->get());
 
@@ -103,5 +103,20 @@ final class StoreProfilePhoto
     protected function disk(): Filesystem
     {
         return Storage::disk(config('media.profile_photos.disk'));
+    }
+
+    /**
+     * `users.id` and `player_profiles.id` are separate sequences, so without this a `User` and a
+     * `PlayerProfile` sharing the same id would share the same directory. Harmless today —
+     * filenames are UUIDs and every delete names an exact path — but FR-018's GDPR delete (Slice D)
+     * is exactly the consumer that would purge a whole owner directory, and it must not be able to
+     * take an unrelated owner's photos with it.
+     */
+    protected function ownerSegment(User|PlayerProfile $owner): string
+    {
+        return match (true) {
+            $owner instanceof User => 'users',
+            $owner instanceof PlayerProfile => 'players',
+        };
     }
 }

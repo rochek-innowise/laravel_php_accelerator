@@ -108,6 +108,22 @@ final class OverviewTest extends TestCase
         );
     }
 
+    /**
+     * A parent who also trains sees add controls on their own self-profile row, not just on their
+     * children's — `authorizedChild()`'s self branch already lets this action through, and the
+     * view's `@can('manageTrainerAssociations', $profile)` gate must not disagree and hide it.
+     */
+    #[Test]
+    public function a_parent_who_also_trains_sees_add_controls_on_their_own_self_profile_row(): void
+    {
+        $parent = User::factory()->create();
+        PlayerProfile::factory()->selfProfile($parent)->create();
+
+        Livewire::actingAs($parent)
+            ->test(Overview::class)
+            ->assertSeeHtml('Add by invitation code');
+    }
+
     #[Test]
     public function the_manual_code_path_adds_by_invitation_code(): void
     {
@@ -177,6 +193,28 @@ final class OverviewTest extends TestCase
             'player_profile_id' => $child->id,
             'trainer_profile_id' => $stranger->id,
         ]);
+    }
+
+    /**
+     * The placeholder `<option value="">` submits `""`, not a missing key, so clicking Add with
+     * nothing chosen must land as a validation error on the field — the same shape `addByCode`
+     * uses for an empty code — never the bare 403 a forged, non-empty id gets above.
+     */
+    #[Test]
+    public function submitting_the_picker_with_nothing_selected_is_a_validation_error_not_a_403(): void
+    {
+        $parent = User::factory()->create();
+        $child = PlayerProfile::factory()->child()->guardedBy($parent)->create();
+        $familyTrainer = TrainerProfile::factory()->create();
+        TrainerPlayer::factory()->create(['trainer_profile_id' => $familyTrainer->id, 'player_profile_id' => $child->id]);
+
+        Livewire::actingAs($parent)
+            ->test(Overview::class)
+            ->set("pickerTrainerId.{$child->id}", '')
+            ->call('addTrainer', $child->id)
+            ->assertHasErrors(["pickerTrainerId.{$child->id}"]);
+
+        $this->assertDatabaseCount('trainer_players', 1);
     }
 
     #[Test]

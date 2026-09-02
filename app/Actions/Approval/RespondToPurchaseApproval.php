@@ -49,11 +49,17 @@ final class RespondToPurchaseApproval
                 return false;
             }
 
+            // One refresh, not three separate `fresh()` calls (each a fresh query and a fresh
+            // instance): `refresh()` mutates this same `$approval` in place, so the executor, the
+            // audit entry, and the `afterCommit` notification below all see the row this update
+            // just wrote — and also so `$approval` in the closures below is never null.
+            $approval->refresh();
+
             if ($decision === ApprovalStatus::Approved) {
-                $this->executor->execute($approval->fresh());
+                $this->executor->execute($approval);
             }
 
-            $this->auditLogger->log('purchase-approval.'.$decision->value, $approval->fresh(), [
+            $this->auditLogger->log('purchase-approval.'.$decision->value, $approval, [
                 'guardian_user_id' => $guardian->getKey(),
             ]);
 
@@ -64,7 +70,7 @@ final class RespondToPurchaseApproval
             // After commit (AD-007): the child's notification must not describe a transition that
             // a rollback undid.
             DB::afterCommit(
-                fn () => $approval->playerProfile?->user?->notify(new PurchaseApprovalResolved($approval->fresh()))
+                fn () => $approval->playerProfile?->user?->notify(new PurchaseApprovalResolved($approval))
             );
         }
 

@@ -222,7 +222,78 @@ final class CreateChildProfileTest extends TestCase
             $this->assertDatabaseMissing('users', ['email' => 'kid6@example.test']);
             $this->assertDatabaseMissing('player_profiles', ['name' => 'Kid 6']);
 
-            RateLimiter::clear('family:child-login:127.0.0.1');
+            RateLimiter::clear('family:child-login:'.$parent->id.':127.0.0.1');
+        }
+    }
+
+    /** The rejection itself is audited, not just enforced silently. */
+    #[Test]
+    public function the_throttled_rejection_is_logged(): void
+    {
+        $parent = User::factory()->create();
+
+        foreach (range(1, 5) as $i) {
+            app(CreateChildProfile::class)->handle($parent, $this->data(
+                name: "Kid {$i}",
+                wantsLogin: true,
+                loginEmail: "kid{$i}@example.test",
+                loginPassword: 'correct-horse-battery-staple',
+                loginPasswordConfirmation: 'correct-horse-battery-staple',
+            ));
+        }
+
+        try {
+            app(CreateChildProfile::class)->handle($parent, $this->data(
+                name: 'Kid 6',
+                wantsLogin: true,
+                loginEmail: 'kid6@example.test',
+                loginPassword: 'correct-horse-battery-staple',
+                loginPasswordConfirmation: 'correct-horse-battery-staple',
+            ));
+
+            $this->fail('Expected the sixth submission to be throttled.');
+        } catch (ValidationException) {
+            $this->assertDatabaseHas('audit_logs', [
+                'action' => 'family.child-login-throttled',
+            ]);
+        } finally {
+            RateLimiter::clear('family:child-login:'.$parent->id.':127.0.0.1');
+        }
+    }
+
+    /**
+     * The limiter key carries the acting guardian's id, not just the IP: a club's guardians share
+     * one NAT address, and one guardian's five submissions must not lock the rest of them out.
+     */
+    #[Test]
+    public function one_guardians_throttle_does_not_block_another_guardian_on_the_same_address(): void
+    {
+        $noisyGuardian = User::factory()->create();
+        $otherGuardian = User::factory()->create();
+
+        foreach (range(1, 5) as $i) {
+            app(CreateChildProfile::class)->handle($noisyGuardian, $this->data(
+                name: "Noisy Kid {$i}",
+                wantsLogin: true,
+                loginEmail: "noisykid{$i}@example.test",
+                loginPassword: 'correct-horse-battery-staple',
+                loginPasswordConfirmation: 'correct-horse-battery-staple',
+            ));
+        }
+
+        try {
+            $profile = app(CreateChildProfile::class)->handle($otherGuardian, $this->data(
+                name: 'Quiet Kid',
+                wantsLogin: true,
+                loginEmail: 'quietkid@example.test',
+                loginPassword: 'correct-horse-battery-staple',
+                loginPasswordConfirmation: 'correct-horse-battery-staple',
+            ));
+
+            $this->assertNotNull($profile->fresh()->user_id);
+        } finally {
+            RateLimiter::clear('family:child-login:'.$noisyGuardian->id.':127.0.0.1');
+            RateLimiter::clear('family:child-login:'.$otherGuardian->id.':127.0.0.1');
         }
     }
 

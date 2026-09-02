@@ -27,7 +27,14 @@ final class Overview extends Component
     /** @var array<int, string> keyed by child id — a separate manual-code field per child row. */
     public array $manualCode = [];
 
-    /** @var array<int, int|null> keyed by child id — the trainer picker per child row. */
+    /**
+     * Keyed by child id — the trainer picker per child row. `string` (never `int`, despite the
+     * option values being numeric ids) because the `<select>` element always submits a string, and
+     * `''` for the untouched placeholder option specifically — never a missing key or `null` — so
+     * `addTrainer()` must treat `''` as "nothing chosen," not as a forged id.
+     *
+     * @var array<int, string>
+     */
     public array $pickerTrainerId = [];
 
     /**
@@ -125,7 +132,14 @@ final class Overview extends Component
         $child = $this->authorizedChild($childId);
         $trainerProfileId = $this->pickerTrainerId[$childId] ?? null;
 
-        abort_if($trainerProfileId === null, 422);
+        // The placeholder option submits `""`, not a missing key — bound straight from the
+        // select, that is a validation error on the field (the same shape `addByCode` uses above),
+        // never a 403. A 403 stays reserved for a genuinely forged, non-empty id below.
+        if ($trainerProfileId === null || $trainerProfileId === '') {
+            throw ValidationException::withMessages([
+                "pickerTrainerId.{$childId}" => 'Choose a trainer.',
+            ]);
+        }
 
         // Re-derived here, not trusted from the picker's submitted value: only a trainer already
         // reachable by this family may be added this way (Decision 4).
@@ -163,9 +177,11 @@ final class Overview extends Component
     /**
      * A guarded child's associations are a guardian-only action (`manageTrainerAssociations`
      * already encodes that, including the child-account deny half). A user's own self profile has
-     * no guardian pivot row at all (`GuardianshipTest` pins this), so that policy would always
-     * refuse it — self-management needs only "you are this profile," the same authorization
-     * `AssociatePlayersWithTrainer`'s add path already relies on via `trainableProfiles()`.
+     * no guardian pivot row at all (`GuardianshipTest` pins this), so self-management is
+     * recognised here by "you are this profile" instead — the same authorization
+     * `AssociatePlayersWithTrainer`'s add path already relies on via `trainableProfiles()`, and the
+     * policy's own self-ownership branch mirrors it, so `/family`'s `@can('manageTrainerAssociations')`
+     * gate and this method never disagree about whether a self profile's row gets controls.
      *
      * 404, not 403, for a profile outside the family entirely: route-model binding through an
      * identity relation reveals nothing about a row the actor cannot even see (AD-009's reasoning).

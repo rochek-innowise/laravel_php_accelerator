@@ -16,6 +16,7 @@ use App\Models\User;
 use App\Notifications\ChildShareLinkBlocked;
 use App\Notifications\JoinedTrainer;
 use Illuminate\Support\Facades\Notification;
+use Illuminate\Support\Facades\RateLimiter;
 use Livewire\Livewire;
 use PHPUnit\Framework\Attributes\Test;
 use Tests\TestCase;
@@ -134,6 +135,34 @@ final class RedeemShareLinkTest extends TestCase
 
         $this->assertDatabaseCount('trainer_players', 0);
         Notification::assertSentTo($guardian, ChildShareLinkBlocked::class);
+    }
+
+    /**
+     * `join()` sits behind Livewire's update endpoint, which a route-level `throttle:` limiter
+     * never sees, so a child repeatedly calling it would otherwise mail and database-notify every
+     * guardian again on each call. The friendly refusal itself still shows every time — only the
+     * notification is throttled.
+     */
+    #[Test]
+    public function a_child_repeatedly_calling_join_does_not_re_notify_guardians_past_the_limit(): void
+    {
+        Notification::fake();
+        [$child, $profile, $guardian] = $this->childWithProfile();
+        $link = $this->playerLink();
+
+        foreach (range(1, 6) as $i) {
+            Livewire::actingAs($child)
+                ->test(RedeemShareLink::class, ['code' => $link->code])
+                ->set('selectedProfileIds', [$profile->id])
+                ->call('join')
+                ->assertOk()
+                ->assertSee('Ask your parent to register you with this trainer');
+        }
+
+        $this->assertDatabaseCount('trainer_players', 0);
+        Notification::assertSentToTimes($guardian, ChildShareLinkBlocked::class, 5);
+
+        RateLimiter::clear('join:child-blocked:'.$child->id);
     }
 
     #[Test]

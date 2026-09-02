@@ -172,6 +172,10 @@ final class ChildFormTest extends TestCase
         Storage::disk('local')->assertExists($profile->photo_path);
         // No thumbnail variant at all for a child photo (Decision 5) — only the original path.
         Storage::disk('local')->assertMissing(User::thumbnailPathFor($profile->photo_path));
+        // A player's photo lives under its own namespace, distinct from `User`'s — `users.id` and
+        // `player_profiles.id` are separate sequences, so a shared directory could otherwise put
+        // an unrelated user's photo alongside this profile's own id.
+        $this->assertStringContainsString('profile-photos/players/'.$profile->id.'/', $profile->photo_path);
     }
 
     #[Test]

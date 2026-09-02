@@ -31,8 +31,16 @@ final class PlayerProfilePolicy
 
     public function manageTrainerAssociations(User $user, PlayerProfile $playerProfile): bool
     {
-        // FR-009/FR-011: a guardian only, never the child themselves — even for their own profile.
-        return $playerProfile->isGuardedBy($user) && ! $user->is_child_account;
+        // FR-009/FR-011: a guardian, or the account managing its own self profile (a parent who
+        // also trains, per `Overview::authorizedChild()`'s self branch) — but never a child login,
+        // even for their own profile. Kept in agreement with that method on purpose: this is also
+        // what `/family`'s view gates its add/remove controls on, so the two must not disagree
+        // about who the self-profile row belongs to.
+        if ($user->is_child_account) {
+            return false;
+        }
+
+        return $playerProfile->isGuardedBy($user) || $user->id === $playerProfile->user_id;
     }
 
     /** A guardian of this person, or the login the profile itself is backed by. */

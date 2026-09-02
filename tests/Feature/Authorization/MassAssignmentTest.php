@@ -4,11 +4,14 @@ declare(strict_types=1);
 
 namespace Tests\Feature\Authorization;
 
+use App\Enums\ApprovalStatus;
+use App\Enums\PaymentType;
 use App\Enums\Role;
 use App\Enums\UserStatus;
 use App\Models\AuditLog;
 use App\Models\CoachProfile;
 use App\Models\PlayerProfile;
+use App\Models\PurchaseApproval;
 use App\Models\TrainerProfile;
 use App\Models\User;
 use Illuminate\Database\Eloquent\MassAssignmentException;
@@ -98,5 +101,64 @@ final class MassAssignmentTest extends TestCase
 
         $this->assertTrue($profile->user()->exists());
         $this->assertTrue($profile->trainerProfile()->exists());
+    }
+
+    /**
+     * AD-016: `token_spend_requires_approval` decides whether a spend skips parental approval
+     * entirely, and `user_id` decides whose child this is — neither may move through `update()`.
+     * Asserted through the actual `fill()`/`update()` behaviour (the value the database keeps
+     * afterwards), not by reading `getFillable()`, which would only restate the allow-list rather
+     * than prove mass assignment is refused.
+     */
+    public function test_player_profile_privilege_and_owner_columns_are_refused_by_mass_assignment(): void
+    {
+        $victim = User::factory()->create();
+        $profile = PlayerProfile::factory()->child()->create([
+            'token_spend_requires_approval' => true,
+        ]);
+        $originalUserId = $profile->user_id;
+
+        $profile->update([
+            'token_spend_requires_approval' => false,
+            'user_id' => $victim->id,
+            'name' => 'Legitimately Renamed',
+        ]);
+
+        $fresh = $profile->fresh();
+        $this->assertTrue($fresh->token_spend_requires_approval);
+        $this->assertSame($originalUserId, $fresh->user_id);
+        $this->assertSame('Legitimately Renamed', $fresh->name);
+    }
+
+    /**
+     * AD-016: `status`, `player_profile_id`, `amount_cents` and `payment_type` decide the outcome
+     * of a purchase and who it belongs to — a request-supplied `status` would let a child approve
+     * their own purchase. `parent_note` is the sole exception. Asserted through `update()`
+     * behaviour, not `getFillable()`, for the same reason as above.
+     */
+    public function test_purchase_approval_refuses_mass_assignment_of_everything_but_parent_note(): void
+    {
+        $approval = PurchaseApproval::factory()->create();
+        $otherProfile = PlayerProfile::factory()->create();
+
+        $originalStatus = $approval->status;
+        $originalAmountCents = $approval->amount_cents;
+        $originalPlayerProfileId = $approval->player_profile_id;
+        $originalPaymentType = $approval->payment_type;
+
+        $approval->update([
+            'status' => ApprovalStatus::Approved,
+            'amount_cents' => 999_999,
+            'player_profile_id' => $otherProfile->id,
+            'payment_type' => PaymentType::Token,
+            'parent_note' => 'Approved for the school trip.',
+        ]);
+
+        $fresh = $approval->fresh();
+        $this->assertSame($originalStatus, $fresh->status);
+        $this->assertSame($originalAmountCents, $fresh->amount_cents);
+        $this->assertSame($originalPlayerProfileId, $fresh->player_profile_id);
+        $this->assertSame($originalPaymentType, $fresh->payment_type);
+        $this->assertSame('Approved for the school trip.', $fresh->parent_note);
     }
 }
