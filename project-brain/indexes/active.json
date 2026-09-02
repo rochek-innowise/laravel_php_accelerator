@@ -98,6 +98,13 @@
     "type": "finding"
   },
   {
+    "id": "5ce3073d-1ffd-4441-8c39-200386fe6895",
+    "path": "project-brain/dynamic/tasks/5ce3073d-1ffd-4441-8c39-200386fe6895.md",
+    "revision": 2,
+    "status": "active",
+    "type": "task"
+  },
+  {
     "id": "9f844a31-daae-4910-b1d8-aaa6739f6d2b",
     "path": "project-brain/dynamic/tasks/9f844a31-daae-4910-b1d8-aaa6739f6d2b.md",
     "revision": 8,

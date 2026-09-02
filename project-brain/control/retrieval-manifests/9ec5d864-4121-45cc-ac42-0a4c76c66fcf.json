@@ -1,0 +1,169 @@
+{
+  "created_at": "2026-09-02T17:07:09.407174+00:00",
+  "escalation_reason": null,
+  "excluded": [
+    {
+      "path": "project-brain/control/handoffs/5ce3073d-1ffd-4441-8c39-200386fe6895.md",
+      "reason": "lifecycle"
+    },
+    {
+      "path": "project-brain/control/handoffs/9f844a31-daae-4910-b1d8-aaa6739f6d2b.md",
+      "reason": "lifecycle"
+    },
+    {
+      "path": "project-brain/control/handoffs/e5588cd6-cc43-4a34-b833-5747604b2ebd.md",
+      "reason": "lifecycle"
+    },
+    {
+      "path": "memory-bank/chunks/MEM-20260902-43f6e56a-tenant-scope-has-two-escape-hatches-with-different-gates.md",
+      "reason": "source-changed"
+    },
+    {
+      "path": "specs/MANIFEST.md",
+      "reason": "layer-limit"
+    },
+    {
+      "path": "specs/architect-architecture.md",
+      "reason": "layer-limit"
+    },
+    {
+      "path": "tasks/TASK-001/test-generator-validation.md",
+      "reason": "layer-limit"
+    },
+    {
+      "path": "tasks/TASK-001/writing-plans-slice-b-plan.md",
+      "reason": "layer-limit"
+    },
+    {
+      "path": "tasks/TASK-001/writing-plans-plan.md",
+      "reason": "layer-limit"
+    },
+    {
+      "path": "memory-bank/chunks/MEM-20260902-70c95be3-owner-and-tenancy-columns-were-mass-assignable-on-profiles-and-auditlog.md",
+      "reason": "layer-limit"
+    },
+    {
+      "path": "project-brain/dynamic/tasks/ff9cb3b1-80dc-4860-a94c-b3375a3fd45a.md",
+      "reason": "layer-limit"
+    },
+    {
+      "path": "project-brain/dynamic/tasks/9f844a31-daae-4910-b1d8-aaa6739f6d2b.md",
+      "reason": "layer-limit"
+    },
+    {
+      "path": "project-brain/dynamic/tasks/e5588cd6-cc43-4a34-b833-5747604b2ebd.md",
+      "reason": "layer-limit"
+    },
+    {
+      "path": "memory-bank/chunks/MEM-20260902-fcadf3e6-migration-down-methods-have-never-been-executed.md",
+      "reason": "layer-limit"
+    },
+    {
+      "path": "memory-bank/chunks/MEM-20260902-3a1a14b0-br-006-is-enforced-by-a-mariadb-generated-column.md",
+      "reason": "layer-limit"
+    },
+    {
+      "path": ".claude/skills/memory-bank/SKILL.md",
+      "reason": "layer-limit"
+    }
+  ],
+  "filters": {
+    "active_only": true,
+    "authority": [
+      "observed",
+      "verified"
+    ],
+    "freshness": true,
+    "owners": [
+      "*"
+    ],
+    "privacy": [
+      "public",
+      "team"
+    ]
+  },
+  "gate": {
+    "decision": "retrieve",
+    "mode": "shadow",
+    "reason": "new-selection",
+    "signals": {
+      "distinctive_matches": 0,
+      "informative_terms": 8,
+      "no_match": [
+        "episodic"
+      ],
+      "query_unchanged_from_previous_turn": false,
+      "selection_identical_to_previous_turn": false,
+      "top_score": 27.537977
+    }
+  },
+  "id": "9ec5d864-4121-45cc-ac42-0a4c76c66fcf",
+  "phase_seconds": {
+    "index": 0.014613,
+    "retrieval": 0.018751,
+    "stat": 0.010812
+  },
+  "provider": "sqlite-fts5",
+  "query": "Slice C family approvals child profiles associations login",
+  "query_source": "explicit",
+  "schema_version": 2,
+  "selected": [
+    {
+      "category": "policy",
+      "estimated_tokens": 53,
+      "match": "covered",
+      "path": ".claude/skills/review-pr/SKILL.md",
+      "rank": 14,
+      "score": 6.828514,
+      "source_hash": "c5f19969056e4285247395da93931ca003d5e1789fe166f0f988c6fc85aedc27"
+    },
+    {
+      "category": "policy",
+      "estimated_tokens": 75,
+      "match": "covered",
+      "path": "AGENTS.md",
+      "rank": 17,
+      "score": 5.962744,
+      "source_hash": "5337bc8075cf6e69475fdbb37f7c9f253169ab75a5452ae55f904559b7684f7d"
+    },
+    {
+      "category": "evidence",
+      "estimated_tokens": 77,
+      "match": "covered",
+      "path": "tasks/TASK-001/requirements-analyst-requirements.md",
+      "rank": 1,
+      "score": 27.537977,
+      "source_hash": "c424ca6c029475476af1f759071de15df5e39b72032aaf91cef4613926eec69b"
+    },
+    {
+      "category": "evidence",
+      "estimated_tokens": 93,
+      "match": "covered",
+      "path": "tasks/TASK-001/brainstorming-design.md",
+      "rank": 3,
+      "score": 22.527078,
+      "source_hash": "00be7225380404d1d837cc9f535633862f8b8975ce7c432196826420381fca63"
+    },
+    {
+      "category": "dynamic",
+      "estimated_tokens": 92,
+      "match": "covered",
+      "path": "project-brain/dynamic/tasks/5ce3073d-1ffd-4441-8c39-200386fe6895.md",
+      "rank": 4,
+      "score": 20.964384,
+      "source_hash": "8ba21b98c34bae86f69a5929888fcde2b61c9a45e2ca7efdb27fcf0b7892bba3"
+    }
+  ],
+  "task_id": "5ce3073d-1ffd-4441-8c39-200386fe6895",
+  "task_revision": 1,
+  "token_estimates": {
+    "durable": 0,
+    "dynamic": 92,
+    "evidence": 170,
+    "handoff": 0,
+    "hard": 12000,
+    "policy": 128,
+    "target": 8000,
+    "total": 390
+  }
+}
