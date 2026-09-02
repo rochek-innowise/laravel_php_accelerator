@@ -128,14 +128,14 @@
   {
     "id": "fde0908c-9e73-4b4c-b319-687f0144450e",
     "path": "project-brain/dynamic/findings/fde0908c-9e73-4b4c-b319-687f0144450e.md",
-    "revision": 3,
-    "status": "open",
+    "revision": 4,
+    "status": "resolved",
     "type": "finding"
   },
   {
     "id": "9f844a31-daae-4910-b1d8-aaa6739f6d2b",
     "path": "project-brain/dynamic/tasks/9f844a31-daae-4910-b1d8-aaa6739f6d2b.md",
-    "revision": 3,
+    "revision": 4,
     "status": "active",
     "type": "task"
   },
