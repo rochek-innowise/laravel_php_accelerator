@@ -76,6 +76,38 @@ final class ContextSwitcherTest extends TestCase
         $this->assertNotSame($strangers->id, session(EnsureTrainerContext::SESSION_KEY));
     }
 
+    /**
+     * FR-011's allow half: "switch own trainer contexts" has no dependency on Epic-02/05, unlike
+     * the rest of that acceptance list — the switcher never branches on `is_child_account`, only on
+     * `role === Player`, which a child login still satisfies. Slice C introduces the child login
+     * itself, so this is the first time the mechanism is exercised as that actor rather than an
+     * ordinary self-profile player.
+     */
+    #[Test]
+    public function a_child_login_switches_between_its_own_trainer_contexts(): void
+    {
+        $guardian = User::factory()->create();
+        $childLogin = User::factory()->childAccount()->create();
+        $child = PlayerProfile::factory()->child()->guardedBy($guardian)->create(['user_id' => $childLogin->id]);
+
+        $first = $this->associate($child, 'Child First Org');
+        $second = $this->associate($child, 'Child Second Org');
+
+        Livewire::actingAs($childLogin)
+            ->test(TrainerSwitcher::class)
+            ->assertSee($first->business_name)
+            ->assertSee($second->business_name)
+            ->call('switch', $second->id);
+
+        $this->assertSame($second->id, session(EnsureTrainerContext::SESSION_KEY));
+
+        $this->actingAs($childLogin)->get(route('profile'))->assertOk();
+
+        $resolved = app(TrainerContext::class)->get();
+        $this->assertNotNull($resolved);
+        $this->assertSame($second->id, $resolved->id);
+    }
+
     #[Test]
     public function a_trainer_sees_no_switcher(): void
     {

@@ -139,6 +139,94 @@ The map records coverage, not correctness.
 | Opening the share-links screen commits nothing | Review F11 | `tests/Feature/Trainer/ShareLinkTest.php::opening_the_screen_never_mints_a_link` | covered — a GET carries no CSRF token |
 | Migration `down()` methods | — | — | **uncovered** — `migrate:rollback` and `migrate:fresh` are blocked by `.claude/hooks/bash-validator.sh`, so the generated-column teardown has never run |
 
+## Slice C — Family, Child Accounts & Approvals
+
+Scope is FR-008–FR-011 and the business rules/NFRs they cite. FR-020 (camp-to-user) and everything
+in Slice D are out of scope and not listed. Three deliberately deferred items from
+`writing-plans-slice-c-plan.md`'s Gaps And Decisions table are excluded on the same basis: "request
+more info" as a third parent response (Decision 6), payment/token execution (Epic-05, Decision 7's
+bypass is the exception — it *is* built and *is* tested below), and FR-010's Epic-02/05 checkout UI
+generally. FR-011's allow-half items that depend on Epic-02 models that do not exist yet (browsing
+events, RSVP, purchased content, own progress, read-only tokens) are likewise not listed as
+uncovered — there is nothing to assert against.
+
+| Requirement | Source | Test | State |
+| --- | --- | --- | --- |
+| A child profile is created, guarded by the acting parent, with the required fields stored | FR-008 | `tests/Feature/Family/CreateChildProfileTest.php::a_child_profile_is_created_and_guarded_by_the_acting_parent`, `tests/Feature/Family/ChildFormTest.php::a_parent_creates_a_child_profile` | covered |
+| Gender is required, not merely offered | FR-008 | `tests/Feature/Family/ChildFormTest.php::a_submission_without_gender_is_rejected` | covered |
+| Age 1–18 is validated against `birth_date`, both boundaries inclusive | FR-008, Decision 1 | `tests/Feature/Family/CreateChildProfileTest.php::an_age_of_zero_is_rejected`, `::an_age_of_nineteen_is_rejected`, `::ages_one_and_eighteen_are_both_accepted`, `tests/Feature/Family/ChildFormTest.php::an_out_of_range_birth_date_surfaces_a_field_error` | covered |
+| A similar name+birth-year within the guardian's own family warns and requires confirmation; an unrelated family's match never triggers it | FR-008, Decision 2 | `CreateChildProfileTest::a_matching_name_and_birth_year_within_the_same_family_requires_confirmation`, `::an_unrelated_familys_matching_name_never_triggers_the_warning`, `ChildFormTest::a_duplicate_within_the_family_shows_a_dismissible_warning_and_confirming_proceeds` | covered |
+| A single-trainer parent's yes/no associates exactly that trainer; declining leaves the child unassociated | FR-008 | `CreateChildProfileTest::a_single_trainer_parent_who_opts_in_is_associated_with_exactly_that_trainer`, `::declining_all_trainers_leaves_the_child_unassociated` | covered |
+| A multi-trainer parent's checklist associates exactly the selected trainers | FR-008 | `CreateChildProfileTest::a_multi_trainer_parent_associates_exactly_the_selected_trainers` | covered |
+| An optional child login is created in the same transaction as the profile | FR-008, Decision 3 | `CreateChildProfileTest::creating_with_a_login_writes_both_flags_together`, `ChildFormTest::creating_a_child_with_a_login_toggle_creates_both_the_profile_and_the_account` | covered |
+| `is_child` and `is_child_account` can never disagree coming out of `CreateChildProfile` | Decision 3, supersedes `MEM-20260902-063160c0`'s seeded-only assertion | `CreateChildProfileTest::the_two_child_flags_never_disagree_coming_out_of_this_action` | covered — asserted at the action level now, not only over seeded data |
+| Creating a child and associating it with a trainer in the same request does not drop the child from a stale `trainableProfiles()` cache | Decision 8 | `CreateChildProfileTest::creating_a_child_and_associating_it_with_a_trainer_in_the_same_request_succeeds` | covered — the regression the plan names as "the test that fails first if Decision 8's reset is skipped" |
+| A child photo is stored full-size with no thumbnail variant | FR-008, Decision 5 | `ChildFormTest::an_uploaded_photo_is_stored_full_size_with_no_thumbnail` | covered |
+| A non-image upload for a child photo is rejected | FR-008 | `ChildFormTest::a_non_image_photo_upload_is_rejected` | covered |
+| A child's photo is served only through a signed, authorized route (guardian, the child's own login, Super Admin; refused to a stranger, an unsigned link, an expired link, or a missing photo) | FR-008, AD-020 | `tests/Feature/PlayerPhotoTest.php` (all six cases) | covered |
+| Only a non-child Player role reaches the child-creation form | FR-008 | `ChildFormTest::a_child_account_cannot_reach_the_form`, `::a_non_player_role_cannot_reach_the_route` | covered |
+| The family view lists only the acting guardian's own children with their trainers and `connected_at` | FR-009 | `tests/Feature/Family/OverviewTest.php::the_family_view_lists_only_the_acting_guardians_own_children_with_their_trainers` | covered |
+| Adding an association via manual ShareLink entry works; an inactive code is refused with the same copy `/join/{code}` uses | FR-009 | `OverviewTest::the_manual_code_path_adds_by_invitation_code`, `::the_manual_code_path_rejects_an_inactive_code_with_the_shared_copy` | covered |
+| Adding via the existing-trainer picker is scoped to trainers already reachable by the family | FR-009 | `OverviewTest::the_existing_trainer_picker_only_offers_trainers_already_reachable_by_the_family` | covered |
+| Removing an association soft-deletes it, the child leaves the trainer's live roster, and history is queryable | FR-009 | `OverviewTest::removing_an_association_soft_deletes_it_and_the_child_leaves_the_roster` | covered |
+| Re-adding the same trainer after removal creates a new row rather than colliding on the unique index | FR-009 | `OverviewTest::re_adding_the_same_trainer_after_removal_creates_a_new_row_not_a_collision` | covered — asserted by row count, not just success |
+| A non-guardian and a child login are both refused every manage/remove action | FR-009, FR-011 | `OverviewTest::a_non_guardian_is_refused_every_manage_action` (404 by construction), `::a_child_login_is_refused_every_manage_action` (403) | covered |
+| A removal is reflected immediately in the same component instance (the per-request memo is cleared on mutation) | FR-009 | `OverviewTest::removing_an_association_is_reflected_immediately_in_the_same_component_instance` | covered |
+| The RSVP-cancellation warning on removal | FR-009 | — | **not applicable** — Decision (Step 6 of the plan) records this as a documented no-op: no RSVP model exists before Epic-02, so there is nothing to warn about or assert |
+| A USD purchase creates a `pending` row with `expires_at` 48 hours out and notifies every guardian | FR-010, BR-013 | `tests/Feature/Approval/RequestPurchaseApprovalTest.php::a_usd_request_creates_a_pending_row_and_notifies_every_guardian` | covered |
+| A token spend is bypassed into an already-`approved` row when the per-child flag is off; the executor runs once and only the bypass notification is sent | FR-010, BR-014, Decision 7 | `RequestPurchaseApprovalTest::a_bypassed_token_request_is_created_already_approved_and_only_sends_the_bypass_notification` | covered |
+| A token spend still requiring approval creates a `pending` row, not a bypass | FR-010, BR-014 | `RequestPurchaseApprovalTest::a_token_request_still_requiring_approval_creates_a_pending_row_not_a_bypass` | covered |
+| A profile-only child (no login) cannot be the subject of a purchase-approval request | FR-010 | `RequestPurchaseApprovalTest::a_profile_only_child_cannot_request_a_purchase_approval` | covered |
+| Approving a pending row calls the executor exactly once, even invoked twice on the same row | FR-010 | `tests/Feature/Approval/RespondToPurchaseApprovalTest.php::approving_a_pending_row_calls_the_executor_exactly_once_even_when_invoked_twice` | covered — the correctness centre of the slice |
+| Denying a pending row never calls the executor | FR-010 | `RespondToPurchaseApprovalTest::denying_a_pending_row_never_calls_the_executor` | covered |
+| Responding to an already-resolved row returns `false` and changes nothing | FR-010 | `RespondToPurchaseApprovalTest::responding_to_an_already_resolved_row_returns_false_and_changes_nothing` | covered |
+| A `request more info` response | FR-010 | — | **deferred** — plan Decision 6; Approve/Deny cover the ratified state machine completely, no test should pin a third transition that does not exist |
+| Payment/token execution itself | FR-010 | — | **out of scope** — belongs to Epic-05; `NullPurchaseExecutor` is the seam, exercised as a spy/fake throughout, never against real payment logic |
+| A pending request past `expires_at` auto-denies (expires) and notifies guardians | FR-010, BR-015, NFR-009 | `tests/Feature/Approval/ExpirePurchaseApprovalsJobTest.php::an_overdue_pending_row_is_expired_and_guardians_are_notified` | covered |
+| A row not yet due is left untouched by the sweep | FR-010 | `ExpirePurchaseApprovalsJobTest::a_row_not_yet_due_is_left_untouched` | covered |
+| A row resolved in the same tick as the sweep is not double-flipped to expired | FR-010, BR-015 | `ExpirePurchaseApprovalsJobTest::a_row_already_resolved_before_the_sweep_runs_is_not_double_flipped` | covered — via a genuinely pre-resolved row, not a race/sleep |
+| The expiry job is registered on the scheduler | FR-010, AD-008 | `ExpirePurchaseApprovalsJobTest::the_job_is_registered_on_the_schedule` | covered |
+| A guardian may view and respond to a pending request; a stranger may neither | FR-010 | `tests/Feature/Authorization/PurchaseApprovalPolicyTest.php::a_guardian_may_view_and_respond_to_a_pending_request`, `::a_stranger_may_neither_view_nor_respond` | covered |
+| A child login may view but never respond, even to its own resolved row | FR-010, FR-011 | `PurchaseApprovalPolicyTest::the_child_may_view_but_never_respond`, `::the_child_still_cannot_respond_once_resolved` | covered |
+| A guardian cannot respond once the row is no longer pending | FR-010 | `PurchaseApprovalPolicyTest::a_guardian_cannot_respond_once_the_row_is_no_longer_pending` | covered |
+| The policy itself grants a Super Admin nothing; only `Gate::before` does | FR-010, Slice A carry-over | `PurchaseApprovalPolicyTest::the_policy_itself_does_not_grant_a_super_admin` | covered |
+| `/approvals` shows a guardian every guarded child's requests with working Approve/Deny, scoped to their own family | FR-010 | `tests/Feature/Family/PendingApprovalsTest.php::a_guardian_sees_every_guarded_childs_requests_with_working_buttons` | covered |
+| `/approvals` shows a child login only its own rows, with no action buttons at all | FR-010, FR-011 | `PendingApprovalsTest::a_child_login_sees_only_its_own_rows_with_no_buttons` | covered |
+| Approving from the UI transitions the row, calls the executor once, and notifies the child | FR-010 | `PendingApprovalsTest::approving_from_the_ui_transitions_the_row_calls_the_executor_and_notifies_the_child` | covered |
+| Denying from the UI transitions the row without calling the executor | FR-010 | `PendingApprovalsTest::denying_from_the_ui_transitions_the_row_without_calling_the_executor` | covered |
+| A child login and a non-guardian stranger cannot call `approve`/`deny` directly, even off-screen | FR-010, FR-011 | `PendingApprovalsTest::a_child_login_cannot_call_approve_or_deny_directly`, `::a_non_guardian_cannot_respond_to_someone_elses_approval` | covered |
+| The notification bell reflects an unread `database`-channel notification and clears it on read | FR-010, AD-011 | `tests/Feature/Family/NotificationBellTest.php::it_reflects_an_unread_database_notification_and_clears_it_on_read`, `::a_user_with_no_notifications_sees_a_zero_count` | covered — the first exercise of the `notifications` table end to end |
+| `ApprovalStatus`/`PaymentType` cases and labels match the ratified state machine | FR-010, Design | `tests/Unit/PurchaseApprovalEnumsTest.php` (all five cases) | covered |
+| `ApprovedPurchaseExecutor` resolves to `NullPurchaseExecutor` and executes without throwing, writing an audit entry | FR-010, Epic-05 seam | `tests/Unit/Services/NullPurchaseExecutorTest.php` | covered |
+| A logged-in child following a ShareLink sees the FR-011 blocking copy, creates no association, and every guardian is notified | FR-011 | `tests/Feature/Join/RedeemShareLinkTest.php::a_child_account_is_blocked_with_friendly_copy_and_guardians_are_notified` | covered — replaces the old `assertForbidden()` assertion per the plan's explicit note, so the change reads as intentional rather than a regression |
+| A child login switches between its own multiple trainer contexts | FR-011 | `tests/Feature/Tenancy/ContextSwitcherTest.php::a_child_login_switches_between_its_own_trainer_contexts` | covered — **added this pass**: the switcher never branches on `is_child_account`, only on `role === Player`, but nothing previously exercised it as that actor; see Findings below |
+| The FR-011 deny list (trainer.associate, purchase.complete, tokens.purchase, payment-method.*, account.delete, trainer-association.change, parent-data.view) | FR-011 | `tests/Unit/ChildAbilitiesTest.php::test_the_deny_list_covers_every_forbidden_action`, `tests/Feature/Authorization/AuthorizationTest.php::test_the_child_deny_list_overrides_a_granted_ability` | covered — Slice A; Slice C adds no new entries per the plan's "Already Enforced" table |
+| A child login updates its own profile's basic fields | FR-011 | `tests/Feature/RoleSpecificProfileFieldsTest.php` (Slice A) via `PlayerProfilePolicy::update()`'s `ownsOrIs` | covered — Slice A; unchanged by Slice C |
+| Browsing eligible events, RSVP/cancel, purchased content, own progress, read-only tokens | FR-011 | — | **not applicable** — Epic-02/05 models do not exist yet; nothing exists to assert against |
+
+### Findings
+
+- **Genuine gap found and closed**: FR-011 lists "switch own trainer contexts" as an allowed
+  action, and unlike the rest of that acceptance list it has no dependency on Epic-02/05 — the
+  `TrainerSwitcher`/`TrainerContext` mechanism (Slice B) is complete today. Every existing test of
+  that mechanism used an ordinary self-profile player as the actor; none used a child login
+  (`is_child_account = true`). Reading `TrainerSwitcher::availableTenants()` confirmed the gate is
+  `role === Player` only — a child login satisfies it identically, so this was a real, testable,
+  non-deferred requirement with no assertion. Added
+  `tests/Feature/Tenancy/ContextSwitcherTest.php::a_child_login_switches_between_its_own_trainer_contexts`,
+  which builds a child login with two trainer associations and asserts both are visible and that
+  `switch()` moves the resolved context between them. No application code was changed — the
+  mechanism already worked; it was simply unproven for this actor. This raised the suite from 306
+  to 307 tests.
+- No other gap was found. Every other FR-008–FR-011 acceptance item is either directly asserted
+  above, already covered by a Slice A/B test cited in the "Already Enforced" table (deny list,
+  own-profile update), or excluded here because the plan explicitly defers it (request-more-info,
+  Epic-05 payment execution) or the underlying model does not exist yet (Epic-02 events/RSVP/tokens
+  UI) — in both of those last cases, writing a test would pin behaviour the plan deliberately did
+  not build, which the task boundaries rule out.
+- The RSVP-cancellation-warning acceptance line under FR-009 is likewise not a gap: the plan
+  records it as a documented no-op pending Epic-02, not an omission.
+
 ## Notes
 
 - The suite runs against **MariaDB**, not SQLite (AD-013), so migrations are exercised on the

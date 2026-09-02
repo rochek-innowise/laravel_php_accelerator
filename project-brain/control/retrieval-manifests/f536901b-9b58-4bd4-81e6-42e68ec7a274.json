@@ -1,0 +1,173 @@
+{
+  "created_at": "2026-09-02T18:28:17.224204+00:00",
+  "escalation_reason": null,
+  "excluded": [
+    {
+      "path": "project-brain/control/handoffs/5ce3073d-1ffd-4441-8c39-200386fe6895.md",
+      "reason": "lifecycle"
+    },
+    {
+      "path": "project-brain/control/handoffs/9f844a31-daae-4910-b1d8-aaa6739f6d2b.md",
+      "reason": "lifecycle"
+    },
+    {
+      "path": "project-brain/dynamic/tasks/5ce3073d-1ffd-4441-8c39-200386fe6895.md",
+      "reason": "layer-limit"
+    },
+    {
+      "path": "tasks/TASK-001/brainstorming-design.md",
+      "reason": "layer-limit"
+    },
+    {
+      "path": "specs/architect-architecture.md",
+      "reason": "layer-limit"
+    },
+    {
+      "path": "tasks/TASK-001/writing-plans-slice-b-plan.md",
+      "reason": "layer-limit"
+    },
+    {
+      "path": "tasks/TASK-001/test-generator-validation.md",
+      "reason": "layer-limit"
+    },
+    {
+      "path": "tasks/TASK-001/writing-plans-plan.md",
+      "reason": "layer-limit"
+    },
+    {
+      "path": "project-brain/dynamic/tasks/9f844a31-daae-4910-b1d8-aaa6739f6d2b.md",
+      "reason": "layer-limit"
+    },
+    {
+      "path": "memory-bank/chunks/MEM-20260902-70c95be3-owner-and-tenancy-columns-were-mass-assignable-on-profiles-and-auditlog.md",
+      "reason": "layer-limit"
+    },
+    {
+      "path": ".claude/skills/memory-bank/SKILL.md",
+      "reason": "layer-limit"
+    },
+    {
+      "path": ".claude/skills/test-generator/SKILL.md",
+      "reason": "layer-limit"
+    },
+    {
+      "path": ".claude/skills/refactorer/SKILL.md",
+      "reason": "layer-limit"
+    },
+    {
+      "path": "project-brain/dynamic/tasks/ff9cb3b1-80dc-4860-a94c-b3375a3fd45a.md",
+      "reason": "layer-limit"
+    },
+    {
+      "path": ".claude/skills/wcag-accessibility/rules/forms-autocomplete.md",
+      "reason": "layer-limit"
+    },
+    {
+      "path": "tasks/README.md",
+      "reason": "layer-limit"
+    },
+    {
+      "path": ".claude/skills/codebase-mapper/SKILL.md",
+      "reason": "layer-limit"
+    }
+  ],
+  "filters": {
+    "active_only": true,
+    "authority": [
+      "observed",
+      "verified"
+    ],
+    "freshness": true,
+    "owners": [
+      "*"
+    ],
+    "privacy": [
+      "public",
+      "team"
+    ]
+  },
+  "gate": {
+    "decision": "retrieve",
+    "mode": "shadow",
+    "reason": "new-selection",
+    "signals": {
+      "distinctive_matches": 5,
+      "informative_terms": 5,
+      "no_match": [
+        "episodic"
+      ],
+      "query_unchanged_from_previous_turn": false,
+      "selection_identical_to_previous_turn": false,
+      "top_score": 14.736368
+    }
+  },
+  "id": "f536901b-9b58-4bd4-81e6-42e68ec7a274",
+  "phase_seconds": {
+    "index": 0.014999,
+    "retrieval": 0.020775,
+    "stat": 0.010849
+  },
+  "provider": "sqlite-fts5",
+  "query": "Slice C family approvals test coverage",
+  "query_source": "explicit",
+  "schema_version": 2,
+  "selected": [
+    {
+      "category": "policy",
+      "estimated_tokens": 53,
+      "match": "covered",
+      "path": ".claude/skills/review-pr/SKILL.md",
+      "rank": 10,
+      "score": 6.398877,
+      "source_hash": "c5f19969056e4285247395da93931ca003d5e1789fe166f0f988c6fc85aedc27"
+    },
+    {
+      "category": "policy",
+      "estimated_tokens": 75,
+      "match": "covered",
+      "path": "AGENTS.md",
+      "rank": 11,
+      "score": 5.833524,
+      "source_hash": "5337bc8075cf6e69475fdbb37f7c9f253169ab75a5452ae55f904559b7684f7d"
+    },
+    {
+      "category": "evidence",
+      "estimated_tokens": 77,
+      "match": "covered",
+      "path": "tasks/TASK-001/writing-plans-slice-c-plan.md",
+      "rank": 1,
+      "score": 14.736368,
+      "source_hash": "e076e1f73e4a63913aa628da64680b9e87439c5c8d1e1ee24b66c13986309c1e"
+    },
+    {
+      "category": "evidence",
+      "estimated_tokens": 74,
+      "match": "covered",
+      "path": "tasks/TASK-001/requirements-analyst-requirements.md",
+      "rank": 3,
+      "score": 13.169681,
+      "source_hash": "c424ca6c029475476af1f759071de15df5e39b72032aaf91cef4613926eec69b"
+    },
+    {
+      "category": "evidence",
+      "estimated_tokens": 65,
+      "match": "covered",
+      "path": "specs/MANIFEST.md",
+      "rank": 4,
+      "score": 10.843101,
+      "source_hash": "be28f4c089c44d8396bbf9a72ad0036c0c94393e87ade6412738fb76db496c34"
+    }
+  ],
+  "task_id": "5ce3073d-1ffd-4441-8c39-200386fe6895",
+  "task_revision": 4,
+  "token_estimates": {
+    "durable": 0,
+    "dynamic": 0,
+    "evidence": 216,
+    "handoff": 0,
+    "hard": 12000,
+    "policy": 128,
+    "target": 8000,
+    "total": 344
+  }
+}
