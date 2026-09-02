@@ -4,8 +4,10 @@ declare(strict_types=1);
 
 namespace App\Providers;
 
+use App\Contracts\ApprovedPurchaseExecutor;
 use App\Listeners\AuditAuthenticationEvents;
 use App\Models\User;
+use App\Services\Approval\NullPurchaseExecutor;
 use App\Support\Authorization\ChildAbilities;
 use App\Support\Tenancy\TrainerContext;
 use Illuminate\Auth\Events\Failed;
@@ -39,6 +41,10 @@ class AppServiceProvider extends ServiceProvider
         // request reusing a worker would otherwise inherit the previous user's tenant — the
         // middleware only ever *sets* a context, it never clears one.
         $this->app->scoped(TrainerContext::class);
+
+        // AD-006: the only interface seam in this epic. Epic-05 rebinds this to the Stripe/token
+        // implementation; nothing else in the approval domain changes.
+        $this->app->bind(ApprovedPurchaseExecutor::class, NullPurchaseExecutor::class);
     }
 
     /**

@@ -94,4 +94,11 @@ class PlayerProfile extends Model
     {
         return $this->belongsTo(User::class);
     }
+
+    /** This person's purchase-approval history — requested, resolved, and expired alike. */
+    /** @return HasMany<PurchaseApproval, $this> */
+    public function purchaseApprovals(): HasMany
+    {
+        return $this->hasMany(PurchaseApproval::class);
+    }
 }

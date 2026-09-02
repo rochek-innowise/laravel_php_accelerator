@@ -1,0 +1,205 @@
+{
+  "created_at": "2026-09-02T17:26:48.655499+00:00",
+  "escalation_reason": null,
+  "excluded": [
+    {
+      "path": ".claude/skills/queues-jobs/SKILL.md",
+      "reason": "budget"
+    },
+    {
+      "path": ".claude/skills/caching/SKILL.md",
+      "reason": "budget"
+    },
+    {
+      "path": "specs/architect-architecture.md",
+      "reason": "layer-limit"
+    },
+    {
+      "path": "memory-bank/chunks/MEM-20260902-fcadf3e6-migration-down-methods-have-never-been-executed.md",
+      "reason": "layer-limit"
+    },
+    {
+      "path": ".claude/skills/writing-plans/SKILL.md",
+      "reason": "layer-limit"
+    },
+    {
+      "path": ".claude/skills/code-reviewer/SKILL.md",
+      "reason": "layer-limit"
+    },
+    {
+      "path": "tasks/TASK-001/writing-plans-slice-c-plan.md",
+      "reason": "layer-limit"
+    },
+    {
+      "path": ".claude/skills/architecture-implementer/SKILL.md",
+      "reason": "layer-limit"
+    },
+    {
+      "path": "tasks/TASK-001/brainstorming-design.md",
+      "reason": "layer-limit"
+    },
+    {
+      "path": ".claude/skills/council/SKILL.md",
+      "reason": "layer-limit"
+    },
+    {
+      "path": "specs/MANIFEST.md",
+      "reason": "layer-limit"
+    },
+    {
+      "path": ".claude/skills/codebase-mapper/SKILL.md",
+      "reason": "layer-limit"
+    },
+    {
+      "path": ".claude/skills/coder/SKILL.md",
+      "reason": "layer-limit"
+    },
+    {
+      "path": "AGENTS.md",
+      "reason": "layer-limit"
+    },
+    {
+      "path": ".claude/skills/memory-bank/SKILL.md",
+      "reason": "layer-limit"
+    },
+    {
+      "path": ".claude/skills/package-developer/SKILL.md",
+      "reason": "layer-limit"
+    },
+    {
+      "path": ".claude/skills/security-reviewer/SKILL.md",
+      "reason": "layer-limit"
+    },
+    {
+      "path": ".claude/skills/using-git-worktrees/SKILL.md",
+      "reason": "layer-limit"
+    },
+    {
+      "path": ".claude/skills/verify/SKILL.md",
+      "reason": "layer-limit"
+    },
+    {
+      "path": ".claude/skills/api-designer/SKILL.md",
+      "reason": "layer-limit"
+    },
+    {
+      "path": ".claude/skills/performance-optimization/SKILL.md",
+      "reason": "layer-limit"
+    },
+    {
+      "path": "tasks/TASK-001/test-generator-validation.md",
+      "reason": "layer-limit"
+    },
+    {
+      "path": "tasks/TASK-001/requirements-analyst-requirements.md",
+      "reason": "layer-limit"
+    },
+    {
+      "path": ".claude/skills/documentation-generator/SKILL.md",
+      "reason": "layer-limit"
+    },
+    {
+      "path": ".claude/skills/sdd/SKILL.md",
+      "reason": "layer-limit"
+    }
+  ],
+  "filters": {
+    "active_only": true,
+    "authority": [
+      "observed",
+      "verified"
+    ],
+    "freshness": true,
+    "owners": [
+      "*"
+    ],
+    "privacy": [
+      "public",
+      "team"
+    ]
+  },
+  "gate": {
+    "decision": "retrieve",
+    "mode": "shadow",
+    "reason": "new-selection",
+    "signals": {
+      "distinctive_matches": 0,
+      "informative_terms": 8,
+      "no_match": [
+        "episodic"
+      ],
+      "query_unchanged_from_previous_turn": false,
+      "selection_identical_to_previous_turn": false,
+      "top_score": 16.551797
+    }
+  },
+  "id": "6aa4be55-54d7-44fb-94eb-dbd9373e0877",
+  "phase_seconds": {
+    "index": 0.015583,
+    "retrieval": 0.023131,
+    "stat": 0.011183
+  },
+  "provider": "sqlite-fts5",
+  "query": "reverse migration MariaDB foreign key index drop order",
+  "query_source": "explicit",
+  "schema_version": 2,
+  "selected": [
+    {
+      "category": "policy",
+      "estimated_tokens": 64,
+      "match": "covered",
+      "path": ".claude/skills/database-designer/SKILL.md",
+      "rank": 1,
+      "score": 16.551797,
+      "source_hash": "863bb343baa0c46bcc159be8b4da17a8d27c3cb9c1d83da6f6fa1f3882196d2a"
+    },
+    {
+      "category": "policy",
+      "estimated_tokens": 68,
+      "match": "covered",
+      "path": ".claude/skills/eloquent/SKILL.md",
+      "rank": 5,
+      "score": 11.2455,
+      "source_hash": "5ab92170514ad2ef8de6658b200f200e3bc688691ac5436ddedf4d2ec38ea8e0"
+    },
+    {
+      "category": "durable",
+      "estimated_tokens": 77,
+      "match": "covered",
+      "path": "memory-bank/chunks/MEM-20260902-3a1a14b0-br-006-is-enforced-by-a-mariadb-generated-column.md",
+      "rank": 2,
+      "score": 13.045587,
+      "source_hash": "279406c4f99b4b9f168049413d6f31d008907e634a5a3cb1be72cf4ec3c813f0"
+    },
+    {
+      "category": "evidence",
+      "estimated_tokens": 60,
+      "match": "covered",
+      "path": "tasks/TASK-001/writing-plans-plan.md",
+      "rank": 3,
+      "score": 12.777772,
+      "source_hash": "2b6da4889ccc852bc7d04f51a9184bc7f1e1eeea7c7d3e56342886a1edf7c77f"
+    },
+    {
+      "category": "evidence",
+      "estimated_tokens": 61,
+      "match": "covered",
+      "path": "tasks/TASK-001/writing-plans-slice-b-plan.md",
+      "rank": 4,
+      "score": 12.176701,
+      "source_hash": "f0d4672262ec86cacdaad433884312453308f798214e526a271f36db4e6fc136"
+    }
+  ],
+  "task_id": "5ce3073d-1ffd-4441-8c39-200386fe6895",
+  "task_revision": 2,
+  "token_estimates": {
+    "durable": 77,
+    "dynamic": 0,
+    "evidence": 121,
+    "handoff": 0,
+    "hard": 12000,
+    "policy": 132,
+    "target": 8000,
+    "total": 330
+  }
+}
