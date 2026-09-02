@@ -251,6 +251,37 @@ with two guardians has no single owner to restore.
 
 ---
 
+### AD-020 — Profile photos are private and served through a signed route
+
+Photos live on the **private** `local` disk (`storage/app/private`), never on `public`. A child's
+photo behind a guessable URL is a leak that no later access-control layer can undo, so placement
+itself is the access decision (AD-001's reasoning applied to files).
+
+Every read goes through `ProfilePhotoController`. The signature bounds the link's lifetime; the
+**policy decides who may follow it**. Both are required: a valid signature alone would mean a link
+shared once grants access forever, and a policy check alone would mean the URL never expires.
+Links are minted per page render with a short TTL and are never stored, cached or emailed.
+
+Validation is layered, because MIME sniffing is necessary but not sufficient:
+
+1. `mimetypes:` (finfo, actual bytes) rejects a renamed script before anything is written.
+2. The decoder is the second gate. A file can sniff as an image and still fail to decode; that
+   path deletes the partial upload and surfaces a field error rather than a 500.
+
+Note for whoever writes the next upload feature: `UploadedFile::fake()` derives its MIME type from
+the extension, so in tests a renamed script *claims* to be a JPEG and passes step 1. Real uploads
+are sniffed by finfo and stop there. A test asserting step 1 with `createWithContent` is testing
+the fake, not the rule.
+
+One column carries both variants: the thumbnail is a deterministic `_thumb` suffix on
+`users.photo_path`, so no migration was needed. Writes are ordered original → thumbnail → delete
+previous, so a failure anywhere leaves the user with the photo they already had.
+
+Local, not S3 or MinIO: `Storage::disk()` keeps the feature disk-agnostic, so moving to S3 is a
+config change (`PROFILE_PHOTO_DISK`) rather than a code change. A container bought nothing here.
+
+---
+
 ### AD-013 — The test suite runs on MariaDB
 
 `phpunit.xml` ships pointing at `sqlite::memory:`, which cannot execute this schema: BR-006 is enforced by a MariaDB generated column using `IF()`, and the two engines diverge exactly on that feature — SQLite has partial indexes, MariaDB does not, which is the whole reason the generated column exists.

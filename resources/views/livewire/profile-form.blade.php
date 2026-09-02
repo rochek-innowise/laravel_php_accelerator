@@ -99,5 +99,18 @@
         @endif
     </dl>
 
-    {{-- TODO(file-storage): profile photo upload, resize, non-public disk, signed serving route. --}}
+    <fieldset>
+        <legend>Photo</legend>
+
+        @if ($user->photo_path)
+            <img src="{{ $user->photoUrl() }}" alt="Your profile photo" width="128" height="128">
+            <button type="button" wire:click="removePhoto">Remove photo</button>
+        @endif
+
+        <label for="photo">Upload a photo</label>
+        <input id="photo" type="file" wire:model="photo" accept="image/jpeg,image/png,image/webp">
+        @error('photo') <p role="alert">{{ $message }}</p> @enderror
+
+        <p wire:loading wire:target="photo">Checking the file…</p>
+    </fieldset>
 </div>

@@ -16,6 +16,7 @@ use Illuminate\Database\Eloquent\Relations\BelongsToMany;
 use Illuminate\Database\Eloquent\Relations\HasOne;
 use Illuminate\Foundation\Auth\User as Authenticatable;
 use Illuminate\Notifications\Notifiable;
+use Illuminate\Support\Facades\URL;
 
 // `role`, `status` and `is_child_account` are deliberately absent: they decide privilege, and a
 // future `update($request->validated())` anywhere would otherwise be a role-escalation hole. The
@@ -114,6 +115,33 @@ class User extends Authenticatable implements MustVerifyEmail
         }
 
         parent::sendPasswordResetNotification($token);
+    }
+
+    /** Thumbnails are a deterministic suffix, so one column carries both variants. */
+    public static function thumbnailPathFor(string $path): string
+    {
+        $extension = pathinfo($path, PATHINFO_EXTENSION);
+
+        return preg_replace('/\.'.preg_quote($extension, '/').'$/', '', $path).'_thumb.'.$extension;
+    }
+
+    public function photoThumbnailPath(): ?string
+    {
+        return empty($this->photo_path) ? null : static::thumbnailPathFor($this->photo_path);
+    }
+
+    /** Minted per render and short-lived: the URL is never stored, cached or emailed (AD-020). */
+    public function photoUrl(string $variant = 'thumbnail'): ?string
+    {
+        if (empty($this->photo_path)) {
+            return null;
+        }
+
+        return URL::temporarySignedRoute(
+            'users.photo',
+            now()->addMinutes((int) config('media.profile_photos.url_ttl_minutes')),
+            ['user' => $this->getKey(), 'variant' => $variant],
+        );
     }
 
     public function isSuperAdmin(): bool

@@ -5,11 +5,15 @@ declare(strict_types=1);
 namespace App\Livewire;
 
 use App\Actions\Fortify\UpdateUserProfileInformation;
+use App\Actions\Profile\StoreProfilePhoto;
+use App\Exceptions\ProfilePhotoException;
 use App\Models\PlayerProfile;
 use App\Models\User;
 use Illuminate\Contracts\View\View;
 use Livewire\Attributes\Locked;
 use Livewire\Component;
+use Livewire\Features\SupportFileUploads\TemporaryUploadedFile;
+use Livewire\WithFileUploads;
 
 /**
  * FR-016: any user edits their own profile plus the field set for their resolved profile.
@@ -19,6 +23,8 @@ use Livewire\Component;
  */
 final class ProfileForm extends Component
 {
+    use WithFileUploads;
+
     public string $firstName = '';
 
     public string $lastName = '';
@@ -30,6 +36,8 @@ final class ProfileForm extends Component
 
     /** @var array<int, array{id: int, name: string, emergency_contact: string|null}> */
     public array $children = [];
+
+    public ?TemporaryUploadedFile $photo = null;
 
     #[Locked]
     public ?string $skill_level = null;
@@ -106,7 +114,30 @@ final class ProfileForm extends Component
         }
     }
 
-    public function save(UpdateUserProfileInformation $updateProfileInformation): void
+    /**
+     * Validated the moment it lands, before anything reaches the permanent disk. Livewire has
+     * already buffered it under livewire-tmp by then — unavoidable — so the check that matters is
+     * this one, on the sniffed MIME type rather than the filename.
+     */
+    public function updatedPhoto(): void
+    {
+        $this->validateOnly('photo', $this->photoRules());
+    }
+
+    public function removePhoto(StoreProfilePhoto $storeProfilePhoto): void
+    {
+        $user = auth()->user();
+
+        $this->authorize('update', $user);
+
+        $storeProfilePhoto->remove($user);
+
+        $this->photo = null;
+
+        session()->flash('status', 'Photo removed.');
+    }
+
+    public function save(UpdateUserProfileInformation $updateProfileInformation, StoreProfilePhoto $storeProfilePhoto): void
     {
         $user = auth()->user();
 
@@ -125,6 +156,20 @@ final class ProfileForm extends Component
         }
 
         $this->saveChildren($user);
+
+        if (! empty($this->photo)) {
+            $this->validate($this->photoRules());
+
+            try {
+                $storeProfilePhoto->handle($user, $this->photo);
+            } catch (ProfilePhotoException $e) {
+                $this->addError('photo', $e->getMessage());
+
+                return;
+            }
+
+            $this->photo = null;
+        }
 
         if ($coach = $user->coachProfile) {
             $this->authorize('update', $coach);
@@ -175,6 +220,24 @@ final class ProfileForm extends Component
         ];
 
         return $rules;
+    }
+
+    /**
+     * `mimetypes` sniffs the file's actual content through finfo, unlike `mimes`, which trusts the
+     * extension — a renamed script would otherwise pass.
+     *
+     * @return array<string, array<int, string>>
+     */
+    protected function photoRules(): array
+    {
+        return [
+            'photo' => [
+                'required',
+                'image',
+                'mimetypes:'.implode(',', config('media.profile_photos.mime_types')),
+                'max:'.config('media.profile_photos.max_kilobytes'),
+            ],
+        ];
     }
 
     /** @return array<string, array<int, string>> */

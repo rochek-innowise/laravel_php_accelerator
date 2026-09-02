@@ -3,6 +3,7 @@
 declare(strict_types=1);
 
 use App\Http\Controllers\DashboardController;
+use App\Http\Controllers\ProfilePhotoController;
 use App\Livewire\Admin\CreateTrainerForm;
 use App\Livewire\Admin\EditUserForm;
 use App\Livewire\Admin\UsersTable;
@@ -20,6 +21,12 @@ Route::middleware(['auth'])->group(function (): void {
     // Not behind `verified`: a user must be able to reach their profile and the verification
     // notice before verifying (Q-01.05a — verification is required to act, not to log in).
     Route::get('/profile', ProfileForm::class)->name('profile');
+
+    // Signed, and the controller re-checks the policy: the signature bounds the link's lifetime,
+    // it does not decide who may follow it. Not behind `verified` — the profile screen is not.
+    Route::get('/users/{user}/photo/{variant?}', ProfilePhotoController::class)
+        ->middleware('signed')
+        ->name('users.photo');
 
     Route::middleware(['verified'])->group(function (): void {
         Route::get('/dashboard', DashboardController::class)->name('dashboard');

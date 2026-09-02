@@ -13,6 +13,8 @@ use Illuminate\Auth\Events\Logout;
 use Illuminate\Support\Facades\Event;
 use Illuminate\Support\Facades\Gate;
 use Illuminate\Support\ServiceProvider;
+use Intervention\Image\Drivers\Gd\Driver;
+use Intervention\Image\ImageManager;
 
 class AppServiceProvider extends ServiceProvider
 {
@@ -27,7 +29,9 @@ class AppServiceProvider extends ServiceProvider
      */
     public function register(): void
     {
-        //
+        // GD rather than Imagick: both are available in the container, and profile photos need
+        // nothing Imagick offers beyond it.
+        $this->app->singleton(ImageManager::class, fn (): ImageManager => new ImageManager(new Driver));
     }
 
     /**

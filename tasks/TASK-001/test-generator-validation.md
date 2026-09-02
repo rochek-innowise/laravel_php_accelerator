@@ -44,7 +44,10 @@ The map records coverage, not correctness.
 | A trainer edits their business profile | FR-016 | `tests/Feature/RoleSpecificProfileFieldsTest.php::test_a_trainer_edits_their_business_profile` | covered |
 | Role-specific validation: bad URL, over-length text | FR-016 | `tests/Feature/RoleSpecificProfileFieldsTest.php::test_an_invalid_website_url_is_rejected`, `::test_over_length_text_is_rejected` | covered |
 | A user with no matching profile sees only the common fields; a role sees only its own set | FR-016 | `tests/Feature/RoleSpecificProfileFieldsTest.php::test_a_user_with_no_matching_profile_sees_only_common_fields`, `::test_a_coach_sees_only_the_coach_field_set` | covered |
-| Profile photo upload | FR-016 | — | uncovered — not implemented; belongs to the file-storage work |
+| Profile photo upload | FR-016 | `tests/Feature/ProfilePhotoTest.php` | covered — upload, square thumbnail, replacement, removal |
+| Photo validation rejects non-images | FR-016, NFR-006 | `tests/Feature/ProfilePhotoTest.php::test_a_non_image_upload_is_rejected_by_validation`, `::test_an_oversized_upload_is_rejected` | covered |
+| A file that sniffs as an image but cannot decode fails safely | FR-016 | `tests/Feature/ProfilePhotoTest.php::test_a_renamed_script_fails_decoding_and_leaves_no_file` | covered — field error, not a 500, and no file left on disk |
+| Photos are served only through a signed, authorized route | FR-016, AD-020 | `tests/Feature/ProfilePhotoTest.php::test_the_photo_is_served_through_a_signed_route`, `::test_an_unsigned_request_is_refused`, `::test_a_signed_link_does_not_let_a_stranger_through`, `::test_an_expired_link_is_refused` | covered |
 | A deactivated account cannot log in, with the specified message | FR-017 | `tests/Feature/Auth/LoginTest.php::test_a_deactivated_user_cannot_log_in` | covered |
 | A deactivated account loses an already-open session | FR-017 | `tests/Feature/Auth/AccountStatusTest.php::test_a_session_deactivated_mid_flight_is_terminated`, `::test_the_remember_token_is_cycled_on_lockout`, `::test_a_deactivated_user_cannot_reach_fortify_profile_endpoints` | covered |
 | A deleted account cannot log in | FR-018 | `tests/Feature/Auth/LoginTest.php::test_a_deleted_user_cannot_log_in` | covered |
