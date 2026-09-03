@@ -25,8 +25,15 @@ class AppServiceProvider extends ServiceProvider
     /**
      * Abilities whose policy already encodes its own Super Admin rule. The bypass must fall
      * through to them, or BR-016 (no Super-Admin-on-Super-Admin impersonation) is unenforceable.
+     *
+     * `deactivate`, `reactivate` and `delete` were added as part of Slice D Track C: their own
+     * `UserPolicy` methods already carry a `! $user->is($subject)` self-guard, but with only
+     * `impersonate` listed here the Super Admin bypass above short-circuited every other ability
+     * to `true` before that guard ever ran — so a Super Admin could deactivate or GDPR-delete
+     * their *own* account and lock the platform's last admin out irreversibly. FR-017/FR-018 do
+     * not intend this; the self-guards are only authoritative once their abilities are listed here.
      */
-    protected const NOT_BYPASSABLE = ['impersonate'];
+    protected const NOT_BYPASSABLE = ['impersonate', 'deactivate', 'reactivate', 'delete'];
 
     /**
      * Register any application services.
