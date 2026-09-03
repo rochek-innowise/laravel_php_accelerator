@@ -644,7 +644,7 @@ leaks model data.
 Slice D closes Epic-01 with six load-bearing features: player/parent availability grids (FR-014),
 coach My Times with conflict override logging (FR-015), Super Admin impersonation (FR-012),
 deactivate/reactivate and GDPR anonymization (FR-017/FR-018), and trainer portal branding
-(FR-019). The implementation delivered **495 tests passing**, Pint clean, PHPStan level 5 clean.
+(FR-019). The implementation delivered **501 tests passing**, Pint clean, PHPStan level 5 clean.
 
 ### Availability scoping: nullable trainer_profile_id
 
@@ -664,12 +664,18 @@ profile-to-override lookup, and `(trainer_profile_id, day_of_week, start_time)` 
 filter query (`rosterAvailableAt()`). The two indexes are exercised by feature tests seeding a mixed
 default/override roster.
 
-**The `is_available = false` column is unreachable from the UI** — marked as an open item. The schema,
-migration comment and `AvailabilityFactory::unavailable()` all support it, and the resolver, roster
-query and conflict checker honour it. But `Grid::loadRanges()` filters those rows out and
-`validatedRanges()` hardcodes `true`, so a "Not Available" day can only be created by a factory, and
-a grid save would silently delete one. FR-014's acceptance text explicitly says "mark available ranges
-**or 'Not Available'**". Awaiting client confirmation.
+**"Not Available" days (`is_available = false`) — closed.** FR-014's acceptance text requires marking
+a day as available ranges **or** "Not Available", and the schema, resolver, roster query and
+`CoachConflictChecker` honoured the flag from the start. The grid could not reach it: `loadRanges()`
+filtered those rows out and `validatedRanges()` hardcoded `true`. Because `SaveAvailability` replaces
+the set wholesale, a row the screen could not see was a row the next save silently deleted.
+
+The grid now carries a per-day "Not available" control bound to `$unavailableDays`, round-trips
+existing unavailable days back onto the screen, and enforces mutual exclusivity with ranges as a field
+error rather than a silent discard. An unavailable day is stored as one row per day with NULL
+`start_time`/`end_time` — the shape every downstream reader already expected, so no migration was
+needed. `tests/Feature/Availability/NotAvailableDayTest.php` pins the silent-deletion regression
+explicitly.
 
 **Services/Availability/ subdirectory deliberate divergence** — the plan's flat `Services/` listing is
 superseded by the precedent Slice C set with `Services/Approval/`. Both `AvailabilityResolver` and
@@ -813,7 +819,7 @@ forever, and the compliance report shows open-ended rows indefinitely.
 
 ### Test coverage
 
-Slice D closes the test-generator validation map at **495 tests / 1404 assertions**, up from Slice C's
+Slice D closes the test-generator validation map at **501 tests / 1424 assertions**, up from Slice C's
 329 / 939. Coverage includes:
 
 - Availability: default set save/read, per-trainer override wholly replacing the default, reset to
