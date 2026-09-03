@@ -1,5 +1,12 @@
 [
   {
+    "id": "2e5048de-cecb-40c1-b7e6-010a0606780a",
+    "path": "project-brain/dynamic/events/2e5048de-cecb-40c1-b7e6-010a0606780a.md",
+    "revision": 1,
+    "status": "recorded",
+    "type": "event"
+  },
+  {
     "id": "61453139-46a3-4451-b008-01566d890343",
     "path": "project-brain/dynamic/events/61453139-46a3-4451-b008-01566d890343.md",
     "revision": 1,
@@ -147,6 +154,13 @@
     "type": "finding"
   },
   {
+    "id": "4c46968a-f313-4e59-b7ac-69d73c9c742b",
+    "path": "project-brain/dynamic/tasks/4c46968a-f313-4e59-b7ac-69d73c9c742b.md",
+    "revision": 5,
+    "status": "completed",
+    "type": "task"
+  },
+  {
     "id": "5ce3073d-1ffd-4441-8c39-200386fe6895",
     "path": "project-brain/dynamic/tasks/5ce3073d-1ffd-4441-8c39-200386fe6895.md",
     "revision": 10,
@@ -170,7 +184,7 @@
   {
     "id": "ff9cb3b1-80dc-4860-a94c-b3375a3fd45a",
     "path": "project-brain/dynamic/tasks/ff9cb3b1-80dc-4860-a94c-b3375a3fd45a.md",
-    "revision": 4,
+    "revision": 5,
     "status": "active",
     "type": "task"
   }

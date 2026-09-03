@@ -1,0 +1,26 @@
+{
+  "conflicts": [],
+  "content": "Only Player and Coach may accept a coaching invitation; any other role is refused before the role column is touched, so a forwarded link can no longer demote a Super Admin or orphan an organisation.\n\n## Sources\n- app/Actions/Trainer/AcceptCoachInvitation.php",
+  "created_at": "2026-09-03T12:49:16.761723+00:00",
+  "destination_memory_id": "MEM-20260903-3c0b6b6b",
+  "destination_revision": 1,
+  "id": "733268a5-6707-437e-add0-37c5e5f5d8f7",
+  "outcome": "promoted",
+  "proposer": "local",
+  "review_mode": "automatic",
+  "reviewed_at": "2026-09-03T12:49:16.763973+00:00",
+  "reviewer": null,
+  "revision": 3,
+  "schema_version": 1,
+  "source_records": [
+    {
+      "id": "3c0b6b6b-9bb8-4cdf-a9d6-09f2ebdbebc3",
+      "path": "project-brain/dynamic/findings/3c0b6b6b-9bb8-4cdf-a9d6-09f2ebdbebc3.md",
+      "revision": 2,
+      "type": "finding"
+    }
+  ],
+  "status": "applied",
+  "title": "Accepting a coach invitation overwrites the redeemer's role, demoting a Trainer or Super Admin",
+  "updated_at": "2026-09-03T12:49:16.777725+00:00"
+}

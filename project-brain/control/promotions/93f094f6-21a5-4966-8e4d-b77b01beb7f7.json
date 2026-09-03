@@ -1,0 +1,26 @@
+{
+  "conflicts": [],
+  "content": "Coaches::resend() filters on ShareLinkType::Coach and authorizes update on the resolved row, so a client-supplied id can no longer revoke the organisation's permanent player link.\n\n## Sources\n- app/Livewire/Trainer/Coaches.php",
+  "created_at": "2026-09-03T12:49:16.801750+00:00",
+  "destination_memory_id": "MEM-20260903-4dc71090",
+  "destination_revision": 1,
+  "id": "93f094f6-21a5-4966-8e4d-b77b01beb7f7",
+  "outcome": "promoted",
+  "proposer": "local",
+  "review_mode": "automatic",
+  "reviewed_at": "2026-09-03T12:49:16.803592+00:00",
+  "reviewer": null,
+  "revision": 3,
+  "schema_version": 1,
+  "source_records": [
+    {
+      "id": "4dc71090-9df3-46c5-b52d-62a9c69b147e",
+      "path": "project-brain/dynamic/findings/4dc71090-9df3-46c5-b52d-62a9c69b147e.md",
+      "revision": 2,
+      "type": "finding"
+    }
+  ],
+  "status": "applied",
+  "title": "Coaches::resend() is type-blind, so a client-supplied id destroys the organisation's permanent player link",
+  "updated_at": "2026-09-03T12:49:16.818216+00:00"
+}

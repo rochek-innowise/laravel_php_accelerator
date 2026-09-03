@@ -1,0 +1,26 @@
+{
+  "conflicts": [],
+  "content": "Re-fingerprinted: Slice C extended User with the guardianship and trainable-profile cache reset. This finding's own subject is unchanged.\n\n## Sources\n- app/Models/User.php",
+  "created_at": "2026-09-03T12:49:16.823107+00:00",
+  "destination_memory_id": "MEM-20260903-517a2aae",
+  "destination_revision": 1,
+  "id": "daf69634-1678-4183-9ea8-3a23dab9454b",
+  "outcome": "promoted",
+  "proposer": "local",
+  "review_mode": "automatic",
+  "reviewed_at": "2026-09-03T12:49:16.825142+00:00",
+  "reviewer": null,
+  "revision": 3,
+  "schema_version": 1,
+  "source_records": [
+    {
+      "id": "517a2aae-9228-463e-ad6a-d98411fe6296",
+      "path": "project-brain/dynamic/findings/517a2aae-9228-463e-ad6a-d98411fe6296.md",
+      "revision": 3,
+      "type": "finding"
+    }
+  ],
+  "status": "applied",
+  "title": "User::coachProfile() is an unordered hasOne, so a re-hired coach resolves to their stale released row and loses their tenant",
+  "updated_at": "2026-09-03T12:49:16.839903+00:00"
+}

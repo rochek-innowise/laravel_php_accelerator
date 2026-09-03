@@ -1,0 +1,26 @@
+{
+  "conflicts": [],
+  "content": "Only SQLSTATE 23000 / error 1062 is treated as a BR-006 refusal; deadlocks and lock-wait timeouts — both plausible here, since the method holds two row locks — now surface as faults instead of a plausible-looking field error.\n\n## Sources\n- app/Actions/Trainer/AcceptCoachInvitation.php",
+  "created_at": "2026-09-03T12:49:16.781855+00:00",
+  "destination_memory_id": "MEM-20260903-45e17369",
+  "destination_revision": 1,
+  "id": "5189615e-d94c-4a4c-9a8b-39a5e2a26c37",
+  "outcome": "promoted",
+  "proposer": "local",
+  "review_mode": "automatic",
+  "reviewed_at": "2026-09-03T12:49:16.783718+00:00",
+  "reviewer": null,
+  "revision": 3,
+  "schema_version": 1,
+  "source_records": [
+    {
+      "id": "45e17369-ca37-4b61-ae13-22f73c1cff3b",
+      "path": "project-brain/dynamic/findings/45e17369-ca37-4b61-ae13-22f73c1cff3b.md",
+      "revision": 2,
+      "type": "finding"
+    }
+  ],
+  "status": "applied",
+  "title": "A bare catch(QueryException) reports every database failure as a BR-006 violation",
+  "updated_at": "2026-09-03T12:49:16.797894+00:00"
+}
