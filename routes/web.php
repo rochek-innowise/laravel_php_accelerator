@@ -54,6 +54,14 @@ Route::middleware(['auth'])->group(function (): void {
         ->middleware('signed')
         ->name('players.photo');
 
+    // FR-012. Deliberately outside `verified`, alongside `/profile` above and for the identical
+    // reason: `UserPolicy::impersonate` only requires `status === Active`, not a verified email, so
+    // a freshly-joined active-but-unverified user is a legitimate impersonation target. Inside
+    // `verified`, every request the target makes — including the banner's own stop POST — would
+    // redirect to the verification notice, trapping the admin as that target until the 60-minute
+    // timeout fires with no way to exit sooner.
+    Route::post('/impersonate/stop', [ImpersonationController::class, 'stop'])->name('impersonate.stop');
+
     Route::middleware(['verified'])->group(function (): void {
         Route::get('/dashboard', DashboardController::class)->name('dashboard');
 
@@ -71,10 +79,6 @@ Route::middleware(['auth'])->group(function (): void {
         });
         Route::view('/coach', 'dashboards.coach')->middleware('role:coach')->name('coach.dashboard');
         Route::view('/player', 'dashboards.player')->middleware('role:player')->name('player.dashboard');
-
-        // FR-012. Deliberately outside role:super_admin — the acting session is the target, who
-        // is never a Super Admin, once impersonation is live.
-        Route::post('/impersonate/stop', [ImpersonationController::class, 'stop'])->name('impersonate.stop');
 
         // FR-015. A coach's own fixed weekly schedule — no default/override toggle, always
         // trainer-specific (a coach has exactly one employer). Same component as /availability
