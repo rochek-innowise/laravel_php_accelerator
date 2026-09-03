@@ -57,7 +57,7 @@
                     >
                     <span
                         aria-hidden="true"
-                        style="background-color: {{ $primaryColor }};"
+                        style="background-color: {{ $this->swatchColor() }};"
                         class="inline-block h-10 w-10 rounded-(--radius) border border-line"
                     ></span>
                 </div>

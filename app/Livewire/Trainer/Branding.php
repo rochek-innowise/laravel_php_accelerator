@@ -82,10 +82,39 @@ final class Branding extends Component
         $updateTrainerBranding->reset($trainer);
 
         $this->logo = null;
-        $this->primaryColor = (string) $trainer->fresh()?->primary_color;
+        // Not `$trainer->fresh()?->primary_color`: that was a needless extra query, and `(string)
+        // null` would silently become `''` if `fresh()` ever returned null. `reset()` just wrote
+        // this column on this same instance, so it's already current.
+        $this->primaryColor = (string) $trainer->primary_color;
         $this->resetValidation();
 
         session()->now('branding-status', 'Branding reset to the platform default.');
+    }
+
+    /**
+     * Gap 12: this always derives the *actor's own* trainer profile — there is no reachable path
+     * on this component where `$this->authorize('updateBranding', $trainer)` above is called
+     * against a foreign trainer, so those three calls can never actually fail in practice. They
+     * stay as defence-in-depth against a future change to this method (e.g. accepting a route
+     * parameter) rather than as a live gate today; `TrainerProfilePolicy`'s own test
+     * (`test_a_trainer_from_another_organisation_is_refused`) is what actually exercises the
+     * "wrong trainer" case, at the policy level.
+     */
+    /**
+     * Gap 13 (defence-in-depth): `branding.blade.php`'s swatch renders `$primaryColor` into an
+     * inline `style` attribute *before* validation runs (`wire:model.live`, on every keystroke) —
+     * `{{ }}` escapes `<`/`>`/quotes but not `;`, `{`, `}`, `(`, `)` or `:`, so an unvalidated value
+     * reaching this far could inject arbitrary CSS into the swatch's own `style`. There is no
+     * reachable path to that today (the property is typed `string`, not user-controllable except
+     * through this same input, and `save()` re-validates before anything is persisted), but the
+     * swatch previews on every keystroke, ahead of that validation — so this is checked again here
+     * rather than trusted.
+     */
+    public function swatchColor(): string
+    {
+        return preg_match('/^#[0-9A-Fa-f]{6}$/', $this->primaryColor) === 1
+            ? $this->primaryColor
+            : (string) config('branding.default_primary_color');
     }
 
     protected function trainerProfile(): TrainerProfile

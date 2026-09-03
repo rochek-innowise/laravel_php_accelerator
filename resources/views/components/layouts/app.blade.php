@@ -3,8 +3,22 @@
     // reads. A Super Admin resolves no tenant (`EnsureTrainerContext` never gives them one), so
     // this is a null-safe read with an explicit fallback, not an unguarded `->primary_color` — that
     // would be a null-dereference on every single admin page.
-    $brandPrimaryColor = app(\App\Support\Tenancy\TrainerContext::class)->get()?->primary_color
-        ?? config('branding.default_primary_color');
+    $activeTenant = app(\App\Support\Tenancy\TrainerContext::class)->get();
+    // Gap 13 (defence-in-depth): every writer today validates `/^#[0-9A-Fa-f]{6}$/` before this
+    // column is ever set, so there is no live path to a stored non-hex value — but `{{ }}` only
+    // HTML-escapes, and doesn't stop `;`, `{`, `}`, `(`, `)` or `:` from injecting arbitrary CSS
+    // into this `<style>` block for every member of the organisation were that ever to change.
+    // Re-checking the shape at render, not just at write, means a future writer forgetting that
+    // validation fails safe (the platform default) rather than silently reopening this.
+    $brandPrimaryColor = preg_match('/^#[0-9A-Fa-f]{6}$/', (string) $activeTenant?->primary_color) === 1
+        ? $activeTenant->primary_color
+        : config('branding.default_primary_color');
+    // Gap 11: `TrainerProfile::logoUrl()` documents itself as meant to render for every member of
+    // the organisation on every page load, and until now nothing called it — the same seam bug
+    // `primary_color` had before this step wired it in. Same null-safety reasoning: a Super Admin
+    // has no active tenant at all, and a tenant with no logo yet is `logoUrl() === null`; both
+    // render nothing rather than a broken `<img>`.
+    $brandLogoUrl = $activeTenant?->logoUrl();
 ?>
 <!DOCTYPE html>
 <html lang="{{ str_replace('_', '-', app()->getLocale()) }}">
@@ -33,6 +47,13 @@
     <div class="lg:grid lg:min-h-screen lg:grid-cols-[15rem_1fr]">
         <header class="ink-surface flex flex-wrap items-center justify-between gap-x-4 gap-y-3 bg-ink px-4 py-3 lg:sticky lg:top-0 lg:h-screen lg:flex-col lg:flex-nowrap lg:items-stretch lg:justify-between lg:gap-0 lg:px-6 lg:py-6">
             <a href="{{ route('dashboard') }}" class="shrink-0 lg:mb-10">
+                @if ($brandLogoUrl)
+                    <img
+                        src="{{ $brandLogoUrl }}"
+                        alt="{{ $activeTenant->business_name }} logo"
+                        class="mb-2 h-8 w-auto max-w-[10rem] object-contain"
+                    >
+                @endif
                 <p class="font-mono text-[0.65rem] font-bold uppercase tracking-widest text-field/70">Sports training</p>
                 <p class="font-display text-xl font-bold uppercase tracking-tight text-field lg:text-2xl">Platform</p>
             </a>

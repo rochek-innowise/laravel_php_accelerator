@@ -12,7 +12,6 @@ use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Str;
 use Intervention\Image\ImageManager;
 use Livewire\Features\SupportFileUploads\TemporaryUploadedFile;
-use RuntimeException;
 use Throwable;
 
 /**
@@ -73,41 +72,51 @@ final class UpdateTrainerBranding
         $this->auditLogger->log('trainer-branding.reset', $trainer);
     }
 
+    /**
+     * The upload is decoded and resized in memory first, and only the finished, re-encoded image
+     * ever reaches the disk — a single `put()`, not a raw write followed by an overwrite. The
+     * previous shape wrote the unprocessed upload straight to the **public** disk before resizing
+     * it in place, leaving a brief window where unvalidated bytes were publicly fetchable at a
+     * guessable-once-you-know-the-pattern path. Unexploitable in practice (the extension is
+     * derived from the sniffed MIME, so it can only ever be `.jpg`/`.png`, and the UUID segment
+     * isn't guessable) but strictly better to close anyway (Gap 14).
+     */
     protected function storeLogo(Filesystem $disk, TrainerProfile $trainer, TemporaryUploadedFile $logo): string
     {
         $extension = $this->extensionFor($logo->getMimeType());
         $path = config('media.trainer_logos.directory').'/'.$trainer->getKey().'/'.Str::uuid()->toString().'.'.$extension;
 
-        $disk->put($path, $logo->get());
-
         // The MIME check is not the only gate: a file can sniff as an image and still fail to
         // decode, or resize successfully into something that then fails to encode. Without this
-        // the trainer would get a 500 and the disk would keep the upload.
+        // the trainer would get a 500 and (in the old shape) the disk would keep the raw upload.
         try {
             $maxPixels = (int) config('media.trainer_logos.max_pixels');
 
             $resized = $this->imageManager
-                ->decodeBinary((string) $disk->get($path))
+                ->decodeBinary($logo->get())
                 ->scaleDown($maxPixels, $maxPixels)
                 ->encodeUsingFileExtension($extension);
-
-            $disk->put($path, (string) $resized);
         } catch (Throwable $e) {
-            $disk->delete([$path]);
-
             throw new TrainerLogoException('The logo could not be processed.', previous: $e);
         }
+
+        $disk->put($path, (string) $resized);
 
         return $path;
     }
 
-    /** The extension is derived from the sniffed MIME type, never from the client's filename. */
+    /**
+     * The extension is derived from the sniffed MIME type, never from the client's filename.
+     * Throws `TrainerLogoException`, matching every other failure on this path (Gap 14) — a bare
+     * `RuntimeException` here would have been a 500 for a MIME the validator's `mimetypes` rule
+     * passed but this `match` doesn't name, instead of the field error every other branch gives.
+     */
     protected function extensionFor(?string $mimeType): string
     {
         return match ($mimeType) {
             'image/jpeg' => 'jpg',
             'image/png' => 'png',
-            default => throw new RuntimeException('Unsupported image type ['.($mimeType ?? 'unknown').'].'),
+            default => throw new TrainerLogoException('Unsupported image type ['.($mimeType ?? 'unknown').'].'),
         };
     }
 
