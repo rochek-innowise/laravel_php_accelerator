@@ -1,5 +1,12 @@
 [
   {
+    "id": "61453139-46a3-4451-b008-01566d890343",
+    "path": "project-brain/dynamic/events/61453139-46a3-4451-b008-01566d890343.md",
+    "revision": 1,
+    "status": "recorded",
+    "type": "event"
+  },
+  {
     "id": "152e6db2-07cb-4048-b0ea-3df3c87d3451",
     "path": "project-brain/dynamic/findings/152e6db2-07cb-4048-b0ea-3df3c87d3451.md",
     "revision": 4,
@@ -142,8 +149,8 @@
   {
     "id": "5ce3073d-1ffd-4441-8c39-200386fe6895",
     "path": "project-brain/dynamic/tasks/5ce3073d-1ffd-4441-8c39-200386fe6895.md",
-    "revision": 9,
-    "status": "active",
+    "revision": 10,
+    "status": "completed",
     "type": "task"
   },
   {
