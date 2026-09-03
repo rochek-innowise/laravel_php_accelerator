@@ -23,6 +23,9 @@
         <env name="BCRYPT_ROUNDS" value="4"/>
         <env name="BROADCAST_CONNECTION" value="null"/>
         <env name="CACHE_STORE" value="array"/>
+        <!-- FR-018: UserDeletionLog::hashEmail() fails closed with no salt configured, so the
+             suite needs one set. Not a real secret — test-only, checked into a committed file. -->
+        <env name="GDPR_EMAIL_HASH_SALT" value="test-salt-do-not-use-in-production"/>
         <!-- MariaDB, not SQLite: the schema uses MariaDB-only DDL (AD-013).
              These are DDEV defaults, not a hard pin. PHPUnit sets an env entry only when the
              variable is absent (there is no force="true" here), so CI overrides them by exporting
