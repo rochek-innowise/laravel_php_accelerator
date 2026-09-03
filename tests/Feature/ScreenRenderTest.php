@@ -134,13 +134,10 @@ final class ScreenRenderTest extends TestCase
             ->assertOk()
             ->assertSee('--brand-primary: #222222;', false);
 
-        // A Player's tenant *is* resolved here (unlike the Super Admin case above), but
-        // `ResolvesAvailableTenants` deliberately hydrates only `id`/`business_name`/`logo_path`
-        // for the switcher's G-08 "name and logo, nothing else" guarantee — so `primary_color` is
-        // never loaded onto this particular object, and the layout's `??` falls back to the
-        // platform default for a Player exactly as it does for a genuinely tenant-less Super
-        // Admin. Asserting that here pins the real, current behaviour (not a crash, not a stale
-        // value) rather than a value the code cannot actually produce for this role.
+        // A Player reaches their tenant through `ResolvesAvailableTenants`, whose projection is
+        // deliberately narrow (G-08). `primary_color` is part of that projection because FR-019
+        // requires the brand colour to apply to *every* user in the organisation — a player who
+        // saw the platform default instead would be a requirement miss, not a privacy win.
         $player = User::factory()->create();
         $profile = PlayerProfile::factory()->selfProfile($player)->create();
         $tenant = TrainerProfile::factory()->create(['primary_color' => '#333333']);
@@ -153,6 +150,6 @@ final class ScreenRenderTest extends TestCase
         $this->actingAs($player)
             ->get('/profile')
             ->assertOk()
-            ->assertSee('--brand-primary: '.config('branding.default_primary_color').';', false);
+            ->assertSee('--brand-primary: #333333;', false);
     }
 }
