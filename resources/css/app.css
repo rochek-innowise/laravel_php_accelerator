@@ -79,8 +79,15 @@
         @apply cursor-not-allowed bg-ink-soft/40 text-paper/80 hover:bg-ink-soft/40 active:bg-ink-soft/40 active:brightness-100;
     }
 
+    /*
+     * The brand-outline secondary action. `court` on `paper` is 8.3:1, comfortably past WCAG AA
+     * (NFR-012); it used to be `text-field` / `border-field/30`, but `field` is the *page
+     * background* (see `body` above), so on a `bg-paper` card the label sat at roughly 1.09:1 and
+     * read as an empty gap. The impersonation banner overrides both colours inline for its own
+     * dark-red ground — Tailwind utilities outrank this component layer, so that keeps working.
+     */
     .btn-ghost {
-        @apply inline-flex items-center justify-center gap-2 rounded-(--radius) border border-field/30 bg-transparent px-4 py-2 text-sm font-medium text-field transition-colors duration-[120ms] cursor-pointer hover:bg-field/10;
+        @apply inline-flex items-center justify-center gap-2 rounded-(--radius) border border-court/50 bg-transparent px-4 py-2 text-sm font-medium text-court transition-colors duration-[120ms] cursor-pointer hover:bg-court/10 hover:border-court;
     }
 
     .btn-quiet {
