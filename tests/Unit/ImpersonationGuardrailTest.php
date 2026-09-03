@@ -43,7 +43,7 @@ final class ImpersonationGuardrailTest extends TestCase
         $this->assertFalse(ImpersonationGuardrail::denies('delete'));
     }
 
-    /** Five forbidden abilities today; a shrinking list should fail loudly. */
+    /** Six forbidden abilities today; a shrinking list should fail loudly. */
     public function test_the_deny_list_covers_every_forbidden_ability(): void
     {
         $this->assertSame([
@@ -52,6 +52,7 @@ final class ImpersonationGuardrailTest extends TestCase
             'payment-method.delete',
             'tokens.purchase',
             'purchase.complete',
+            'respond',
         ], ImpersonationGuardrail::DENIED);
     }
 }

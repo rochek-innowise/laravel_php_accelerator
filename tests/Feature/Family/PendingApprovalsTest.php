@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Tests\Feature\Family;
 
+use App\Actions\Approval\RespondToPurchaseApproval;
 use App\Contracts\ApprovedPurchaseExecutor;
 use App\Enums\ApprovalStatus;
 use App\Livewire\Family\PendingApprovals;
@@ -11,6 +12,7 @@ use App\Models\PlayerProfile;
 use App\Models\PurchaseApproval;
 use App\Models\User;
 use App\Notifications\PurchaseApprovalResolved;
+use Illuminate\Auth\Access\AuthorizationException;
 use Illuminate\Support\Facades\Notification;
 use Livewire\Livewire;
 use PHPUnit\Framework\Attributes\Test;
@@ -119,6 +121,43 @@ final class PendingApprovalsTest extends TestCase
         $stranger = User::factory()->create();
 
         Livewire::actingAs($stranger)->test(PendingApprovals::class)->call('approve', $approval->id)->assertForbidden();
+
+        $this->assertSame(ApprovalStatus::Pending, $approval->fresh()->status);
+    }
+
+    /**
+     * Slice D finding 2: a Super Admin impersonating a guardian must not be able to forge that
+     * guardian's financial consent. `respond` is the ability PurchaseApprovalPolicy actually
+     * checks, and it is unique to that policy, so ImpersonationGuardrail::DENIED refuses it
+     * outright regardless of what the (real, allowing) guardian policy would say.
+     *
+     * The component is invoked directly rather than through Livewire::test(), which routes its
+     * internal request through RequestBroker::temporarilyDisableExceptionHandlingAndMiddleware() —
+     * that disables the `web` middleware group entirely, so no session ever gets attached to the
+     * request Gate::before reads, and the guardrail could never be exercised through it. The same
+     * concern, and the same fix, is documented at ImpersonationGuardrailTest::impersonateInSession().
+     */
+    #[Test]
+    public function an_impersonator_is_refused_approve_even_though_the_guardian_policy_allows_it(): void
+    {
+        $guardian = User::factory()->create();
+        $childLogin = User::factory()->childAccount()->create();
+        $child = PlayerProfile::factory()->child()->guardedBy($guardian)->create(['user_id' => $childLogin->id]);
+        $approval = PurchaseApproval::factory()->create(['player_profile_id' => $child->id]);
+
+        $this->actingAs($guardian);
+        $this->session([
+            'impersonator_id' => User::factory()->superAdmin()->create()->id,
+            'impersonation_started_at' => now()->toISOString(),
+        ]);
+        $this->app['request']->setLaravelSession($this->app['session']->driver());
+
+        try {
+            app(PendingApprovals::class)->approve($approval->id, app(RespondToPurchaseApproval::class));
+            $this->fail('Expected an AuthorizationException to be thrown.');
+        } catch (AuthorizationException) {
+            // Expected: the guardrail denies `respond` outright while impersonating.
+        }
 
         $this->assertSame(ApprovalStatus::Pending, $approval->fresh()->status);
     }
