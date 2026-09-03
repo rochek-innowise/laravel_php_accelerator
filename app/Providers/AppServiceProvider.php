@@ -9,6 +9,7 @@ use App\Listeners\AuditAuthenticationEvents;
 use App\Models\User;
 use App\Services\Approval\NullPurchaseExecutor;
 use App\Support\Authorization\ChildAbilities;
+use App\Support\Authorization\ImpersonationGuardrail;
 use App\Support\Tenancy\TrainerContext;
 use Illuminate\Auth\Events\Failed;
 use Illuminate\Auth\Events\Login;
@@ -76,6 +77,12 @@ class AppServiceProvider extends ServiceProvider
         // list above before this ever runs — one rule, one place (FR-011).
         Gate::define('trainer.associate', fn (User $user): bool => ! $user->is_child_account);
 
+        // Slice D Gap 2: always true outside impersonation — the actual refusal lives in the
+        // ImpersonationGuardrail Gate::before below. This is the one narrowly-scoped ability
+        // UpdateUserPassword::update() authorizes against; a blanket deny on 'update' would also
+        // block a trainer editing their own bio while impersonating, which this avoids.
+        Gate::define('user.change-credentials', fn (User $user): bool => true);
+
         // Super Admin bypasses policies, but never while impersonating — the acting identity is
         // the target, and an admin id leaking into the gate would be a privilege hole (AD-005).
         Gate::before(function (User $user, string $ability): ?bool {
@@ -88,6 +95,20 @@ class AppServiceProvider extends ServiceProvider
             }
 
             return null;
+        });
+
+        // Slice D Decision 6's signed-off write guardrail — a separate hook from the one above,
+        // which only suspends the Super Admin *bypass*. This one denies specific abilities
+        // outright while impersonating, regardless of what the target's own permissions would
+        // otherwise allow.
+        Gate::before(function (User $user, string $ability, array $arguments = []): ?bool {
+            if (! $this->isImpersonating()) {
+                return null;
+            }
+
+            $subject = $arguments[0] ?? null;
+
+            return ImpersonationGuardrail::denies($ability, $subject) ? false : null;
         });
     }
 

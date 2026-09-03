@@ -48,9 +48,23 @@ final class UserPolicy
 
     public function impersonate(User $user, User $subject): bool
     {
-        // BR-016: never another Super Admin, and never a non-active account.
+        // BR-016: never another Super Admin, never a non-active account, and never a second
+        // impersonation stacked on top of one already running (Slice D Gap 1).
         return $user->isSuperAdmin()
             && ! $subject->isSuperAdmin()
-            && $subject->status === UserStatus::Active;
+            && $subject->status === UserStatus::Active
+            && ! $this->impersonationAlreadyActive();
+    }
+
+    public function reactivate(User $user, User $subject): bool
+    {
+        return $user->isSuperAdmin() && ! $user->is($subject);
+    }
+
+    protected function impersonationAlreadyActive(): bool
+    {
+        $request = request();
+
+        return $request->hasSession() && $request->session()->has('impersonator_id');
     }
 }

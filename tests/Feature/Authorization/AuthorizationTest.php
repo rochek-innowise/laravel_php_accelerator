@@ -58,6 +58,34 @@ final class AuthorizationTest extends TestCase
         $this->assertFalse($trainer->can('impersonate', $player));
     }
 
+    /** Slice D Gap 1: the fourth gate condition — never a second impersonation stacked on one already running. */
+    public function test_a_super_admin_cannot_start_a_second_impersonation_while_one_is_active(): void
+    {
+        $admin = User::factory()->superAdmin()->create();
+        $player = User::factory()->create();
+
+        $this->session(['impersonator_id' => User::factory()->superAdmin()->create()->id]);
+        $this->app['request']->setLaravelSession($this->app['session']->driver());
+
+        $this->assertFalse($admin->can('impersonate', $player));
+    }
+
+    public function test_a_super_admin_can_reactivate_an_ordinary_user(): void
+    {
+        $admin = User::factory()->superAdmin()->create();
+        $player = User::factory()->create();
+
+        $this->assertTrue($admin->can('reactivate', $player));
+    }
+
+    public function test_a_non_admin_cannot_reactivate(): void
+    {
+        $trainer = User::factory()->trainer()->create();
+        $player = User::factory()->create();
+
+        $this->assertFalse($trainer->can('reactivate', $player));
+    }
+
     /**
      * The deny list must beat an ability that is otherwise granted — that is the only thing that
      * proves the Gate::before hook fires rather than the default deny.
