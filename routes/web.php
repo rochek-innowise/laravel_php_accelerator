@@ -15,6 +15,7 @@ use App\Livewire\Family\Overview as FamilyOverview;
 use App\Livewire\Family\PendingApprovals;
 use App\Livewire\Join\RedeemShareLink;
 use App\Livewire\ProfileForm;
+use App\Livewire\Trainer\Branding;
 use App\Livewire\Trainer\Coaches;
 use App\Livewire\Trainer\ShareLinks;
 use Illuminate\Support\Facades\Route;
@@ -61,6 +62,12 @@ Route::middleware(['auth'])->group(function (): void {
         Route::prefix('trainer')->name('trainer.')->middleware('role:trainer')->group(function (): void {
             Route::get('/share-links', ShareLinks::class)->name('share-links');
             Route::get('/coaches', Coaches::class)->name('coaches');
+
+            // FR-019. Logo and primary colour, tenant-scoped on TrainerProfile — applies
+            // immediately across every user in this trainer's organisation, not a per-user
+            // preference. TrainerProfilePolicy::updateBranding() (owner-only) is the only
+            // authorization this screen needs.
+            Route::get('/branding', Branding::class)->name('branding');
         });
         Route::view('/coach', 'dashboards.coach')->middleware('role:coach')->name('coach.dashboard');
         Route::view('/player', 'dashboards.player')->middleware('role:player')->name('player.dashboard');

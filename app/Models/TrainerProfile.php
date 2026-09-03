@@ -11,6 +11,7 @@ use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\BelongsToMany;
 use Illuminate\Database\Eloquent\Relations\HasMany;
+use Illuminate\Support\Facades\Storage;
 
 // `user_id` is not mass-assignable: it is the tenant root, so create through the relationship
 // ($user->trainerProfile()->create(...)) and let Eloquent set the owner.
@@ -63,5 +64,20 @@ class TrainerProfile extends Model
             ->withPivot(['status', 'connected_at'])
             ->wherePivotNull('deleted_at')
             ->withTimestamps();
+    }
+
+    /**
+     * FR-019 / Gap 12: the logo lives on the public disk, unlike a profile photo — business
+     * identity meant to render for every member of the organisation on every page load, so a
+     * plain public URL is the right shape here, not a per-render signed one (AD-020 is deliberately
+     * not applied to this column).
+     */
+    public function logoUrl(): ?string
+    {
+        if (empty($this->logo_path)) {
+            return null;
+        }
+
+        return Storage::disk(config('media.trainer_logos.disk'))->url($this->logo_path);
     }
 }
