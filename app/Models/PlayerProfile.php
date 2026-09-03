@@ -12,6 +12,7 @@ use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\BelongsToMany;
 use Illuminate\Database\Eloquent\Relations\HasMany;
+use Illuminate\Database\Eloquent\Relations\MorphMany;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\URL;
 
@@ -111,6 +112,18 @@ class PlayerProfile extends Model
     public function purchaseApprovals(): HasMany
     {
         return $this->hasMany(PurchaseApproval::class);
+    }
+
+    /**
+     * FR-014's "Best Times" rows: the default set (`trainer_profile_id` NULL) plus any per-trainer
+     * overrides. Identity-side convenience only — `AvailabilityResolver` queries `Availability`
+     * directly rather than through this relation.
+     *
+     * @return MorphMany<Availability, $this>
+     */
+    public function availabilities(): MorphMany
+    {
+        return $this->morphMany(Availability::class, 'available_for');
     }
 
     /**

@@ -11,6 +11,8 @@ use Illuminate\Database\Eloquent\Attributes\Fillable;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Database\Eloquent\Relations\HasMany;
+use Illuminate\Database\Eloquent\Relations\MorphMany;
 
 // Tenant-owned (AD-001): BelongsToTenant applies the fail-closed scope and fills
 // `trainer_profile_id` on create, so a coach listing with no resolved organisation is empty rather
@@ -53,5 +55,23 @@ class CoachProfile extends Model
     public function user(): BelongsTo
     {
         return $this->belongsTo(User::class);
+    }
+
+    /**
+     * FR-015's fixed (no default/override toggle) weekly schedule. Always `trainer_profile_id`
+     * non-null — a coach has exactly one employer.
+     *
+     * @return MorphMany<Availability, $this>
+     */
+    public function availabilities(): MorphMany
+    {
+        return $this->morphMany(Availability::class, 'available_for');
+    }
+
+    /** This coach's own conflict-override history. */
+    /** @return HasMany<CoachAvailabilityOverride, $this> */
+    public function overrides(): HasMany
+    {
+        return $this->hasMany(CoachAvailabilityOverride::class);
     }
 }
