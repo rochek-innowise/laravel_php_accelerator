@@ -173,13 +173,30 @@ final class UserLifecycleTest extends TestCase
         $this->assertSame('GDPR request', $log->reason);
     }
 
-    /** Comparable across rows: the same address hashes identically every time. */
-    public function test_the_email_hash_is_comparable_across_rows(): void
+    /**
+     * Comparable across rows: two different people who used the same address, anonymized at
+     * different times, hash identically — this is what makes "was this address ever erased" /
+     * "is this person re-registering" answerable across the whole table, not just within one
+     * call. (This replaces a version of this test that only asserted `hashEmail($x) ===
+     * hashEmail($x)`, passing for any deterministic implementation including one returning a
+     * constant, and involving no row at all despite its name — already pinned, more narrowly, by
+     * UserDeletionLogTest's own case/whitespace test.)
+     */
+    public function test_the_email_hash_is_comparable_across_two_actual_deletion_log_rows(): void
     {
-        $this->assertSame(
-            UserDeletionLog::hashEmail('zin@example.test'),
-            UserDeletionLog::hashEmail('zin@example.test'),
-        );
+        $actor = User::factory()->superAdmin()->create();
+
+        $first = User::factory()->create(['email' => 'zin@example.test']);
+        app(AnonymizeUser::class)->handle($first, $actor);
+
+        // Free again once $first was anonymized off it (deleted_{id}@deleted.invalid).
+        $second = User::factory()->create(['email' => 'zin@example.test']);
+        app(AnonymizeUser::class)->handle($second, $actor);
+
+        $firstLog = UserDeletionLog::where('original_user_id', $first->id)->sole();
+        $secondLog = UserDeletionLog::where('original_user_id', $second->id)->sole();
+
+        $this->assertSame($firstLog->email_hash, $secondLog->email_hash);
     }
 
     public function test_anonymizing_scrubs_the_targets_own_self_profile(): void
