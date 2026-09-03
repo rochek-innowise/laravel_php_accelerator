@@ -1,58 +1,128 @@
-<p align="center"><a href="https://laravel.com" target="_blank"><img src="https://raw.githubusercontent.com/laravel/art/master/logo-lockup/5%20SVG/2%20CMYK/1%20Full%20Color/laravel-logolockup-cmyk-red.svg" width="400" alt="Laravel Logo"></a></p>
+# Sports Training Platform — Epic-01
 
-<p align="center">
-<a href="https://github.com/laravel/framework/actions"><img src="https://github.com/laravel/framework/workflows/tests/badge.svg" alt="Build Status"></a>
-<a href="https://packagist.org/packages/laravel/framework"><img src="https://img.shields.io/packagist/dt/laravel/framework" alt="Total Downloads"></a>
-<a href="https://packagist.org/packages/laravel/framework"><img src="https://img.shields.io/packagist/v/laravel/framework" alt="Latest Stable Version"></a>
-<a href="https://packagist.org/packages/laravel/framework"><img src="https://img.shields.io/packagist/l/laravel/framework" alt="License"></a>
-</p>
+Laravel 13 application for sports trainers, their coaches, and the players and families who train
+with them. This repository currently implements **Epic-01: User Management & Authentication**
+(Slices A–D) — identity, multi-tenancy, families, availability, admin tooling and GDPR compliance.
 
-## About Laravel
+Requirements, design and the living architecture spec live in [`specs/`](specs/) and
+[`tasks/TASK-001/`](tasks/TASK-001/).
 
-Laravel is a web application framework with expressive, elegant syntax. We believe development must be an enjoyable and creative experience to be truly fulfilling. Laravel takes the pain out of development by easing common tasks used in many web projects, such as:
+## Requirements
 
-- [Simple, fast routing engine](https://laravel.com/docs/routing).
-- [Powerful dependency injection container](https://laravel.com/docs/container).
-- Multiple back-ends for [session](https://laravel.com/docs/session) and [cache](https://laravel.com/docs/cache) storage.
-- Expressive, intuitive [database ORM](https://laravel.com/docs/eloquent).
-- Database agnostic [schema migrations](https://laravel.com/docs/migrations).
-- [Robust background job processing](https://laravel.com/docs/queues).
-- [Real-time event broadcasting](https://laravel.com/docs/broadcasting).
+- [DDEV](https://ddev.readthedocs.io/en/stable/users/install/) v1.24+ and Docker
 
-Laravel is accessible, powerful, and provides tools required for large, robust applications.
+Everything else — PHP 8.4, Composer, Node 24, MariaDB 11.8 — runs inside DDEV. You do **not** need
+PHP installed on the host, and a host PHP older than 8.4 cannot run this project's `artisan`.
 
-## Learning Laravel
-
-Laravel has the most extensive and thorough [documentation](https://laravel.com/docs) and video tutorial library of all modern web application frameworks, making it a breeze to get started with the framework.
-
-In addition, [Laracasts](https://laracasts.com) contains thousands of video tutorials on a range of topics including Laravel, modern PHP, unit testing, and JavaScript. Boost your skills by digging into our comprehensive video library.
-
-You can also watch bite-sized lessons with real-world projects on [Laravel Learn](https://laravel.com/learn), where you will be guided through building a Laravel application from scratch while learning PHP fundamentals.
-
-## Agentic Development
-
-Laravel's predictable structure and conventions make it ideal for AI coding agents like Claude Code, Cursor, and GitHub Copilot. Install [Laravel Boost](https://laravel.com/docs/ai) to supercharge your AI workflow:
+## Getting started
 
 ```bash
-composer require laravel/boost --dev
-
-php artisan boost:install
+git clone https://github.com/rochek-innowise/laravel_php_accelerator.git
+cd laravel_php_accelerator
+ddev init
 ```
 
-Boost provides your agent 15+ tools and skills that help agents build Laravel applications while following best practices.
+`ddev init` starts the containers, installs PHP and JavaScript dependencies, creates `.env` and the
+application key, builds assets, links public storage, runs migrations and seeds the demo scenario.
+It is safe to re-run: it skips the seed when the database already has users.
 
-## Contributing
+To wipe the database and reseed from scratch:
 
-Thank you for considering contributing to the Laravel framework! The contribution guide can be found in the [Laravel documentation](https://laravel.com/docs/contributions).
+```bash
+ddev init --fresh
+```
 
-## Code of Conduct
+Then open **https://laravel-accelerator.ddev.site**.
 
-In order to ensure that the Laravel community is welcoming to all, please review and abide by the [Code of Conduct](https://laravel.com/docs/contributions#code-of-conduct).
+### Demo accounts
 
-## Security Vulnerabilities
+Every seeded account uses the password `password`.
 
-If you discover a security vulnerability within Laravel, please send an e-mail to Taylor Otwell via [taylor@laravel.com](mailto:taylor@laravel.com). All security vulnerabilities will be promptly addressed.
+| Email | Role | What it is for |
+|---|---|---|
+| `admin@example.test` | Super Admin | Users directory, impersonation, deactivate/reactivate, GDPR delete |
+| `trainer@example.test` | Trainer | Elite Basketball Academy — roster, coaches, ShareLinks, branding |
+| `trainer2@example.test` | Trainer | Northside Volleyball — the counterpart that proves tenant isolation |
+| `coach@example.test` | Coach | My Times (weekly coaching schedule) |
+| `parent@example.test` | Parent | Family view, children, purchase approvals, Best Times |
+| `parent2@example.test` | Parent | Maya's second guardian — the co-guardianship case |
+| `child@example.test` | Child login | The restricted-abilities account (FR-011) |
 
-## License
+The seeded scenario is deliberately the hard one: **Maya Miles is a child with two guardians who
+trains with both organisations.** If a change breaks tenant isolation or the family model, this is
+where it becomes visible.
 
-The Laravel framework is open-sourced software licensed under the [MIT license](https://opensource.org/licenses/MIT).
+## Everyday commands
+
+```bash
+ddev exec php artisan test          # full suite (501 tests)
+ddev exec ./vendor/bin/pint         # format to PSR-12
+ddev exec ./vendor/bin/phpstan analyse   # static analysis, level 5
+ddev exec php artisan route:list --except-vendor
+ddev exec php artisan schedule:list
+ddev npm run dev                    # Vite dev server with hot reload
+ddev ssh                            # shell inside the web container
+```
+
+Run every PHP command through `ddev exec`. The host PHP is not the project's PHP.
+
+### Scheduled jobs
+
+Two jobs run every 15 minutes and matter to Epic-01's behaviour:
+
+- `ExpirePurchaseApprovalsJob` — auto-denies purchase approvals after 48 hours (FR-010).
+- `CloseStaleImpersonationLogsJob` — closes impersonation logs abandoned past the 60-minute
+  ceiling, so the compliance report never shows open-ended sessions (FR-012).
+
+DDEV does not run cron. Trigger them by hand while testing:
+
+```bash
+ddev exec php artisan schedule:run
+```
+
+## What the application does
+
+**Identity and access.** Four roles — Super Admin, Trainer, Coach, Player/Parent — with exactly one
+role per user (BR-002). Registration is closed: accounts are created only by a Super Admin (trainers),
+by invitation (coaches), or through a trainer's ShareLink (players). Authorization is enforced by
+Policies and Gates server-side, never by hiding UI.
+
+**Multi-tenancy.** A trainer's organisation is the tenant boundary, enforced by a fail-closed global
+scope: a query that cannot resolve a tenant returns nothing rather than everything. A player may
+belong to many organisations, and each association is an isolated context the user switches between.
+
+**Families.** A parent manages child profiles, each with its own calendar, associations and
+availability. A child login is a real account with a deny list of abilities it can never perform.
+Purchases initiated by a child require the parent's approval and expire after 48 hours.
+
+**Availability (FR-014/FR-015).** A weekly grid of days and time ranges, or a day marked wholly
+"Not Available". Each person has a default set that applies everywhere, plus optional per-trainer
+overrides that *wholly replace* the default for that one organisation. Coaches keep their own fixed
+schedule, and a conflict checker reports when an assignment would clash with it.
+
+**Admin tooling and compliance.** Super Admins impersonate users (with a colour-coded banner, a
+60-minute timeout, dual-identity audit attribution, and hard-denied credential/payment actions),
+deactivate and reactivate accounts, and perform GDPR erasure by anonymization — historical records
+survive and render as "Deleted User", while a minimal deletion log retains a salted email hash rather
+than the address.
+
+**Branding.** A trainer uploads a logo and picks a primary colour that applies immediately to every
+user in their organisation.
+
+## Architecture notes
+
+- Business logic lives in **Actions** (`app/Actions/`) and **Services** (`app/Services/`); controllers
+  and Livewire components stay thin.
+- The UI is **Livewire** with Blade components and Vite.
+- Authentication is **Laravel Fortify**; registration is deliberately disabled.
+- All schema changes are versioned migrations. Some DDL is MariaDB-specific (a generated column
+  enforces BR-006), so the test suite runs against MariaDB, not SQLite.
+- `AGENTS.md` holds the enforceable engineering policy for this repository.
+
+## Known open items
+
+- **SVG logos are rejected** although the requirement text lists PNG/JPG/SVG. SVG is a scriptable
+  document and accepting it would be a stored-XSS vector. Awaiting client confirmation.
+- **Coach event assignment is not wired.** The availability model, conflict checker and override log
+  are complete; `coach_availability_overrides.event_id` is an intentional seam left unconstrained
+  until Epic-02 introduces events.

@@ -5,7 +5,9 @@ declare(strict_types=1);
 namespace Database\Seeders;
 
 use App\Actions\ShareLink\GeneratePlayerShareLink;
+use App\Enums\DayOfWeek;
 use App\Enums\TrainerPlayerStatus;
+use App\Models\Availability;
 use App\Models\CoachProfile;
 use App\Models\PlayerProfile;
 use App\Models\ShareLink;
@@ -17,7 +19,11 @@ use Illuminate\Database\Seeder;
 
 /**
  * The hard scenario, end to end: if a change breaks isolation or the family model, this seeder
- * is what makes it visible. Availability arrives with Slice D.
+ * is what makes it visible.
+ *
+ * Every account below uses the password `password` and a fixed, memorable address, so each role
+ * can actually be logged into by hand. Trainer and coach owners used to take the factory's random
+ * `safeEmail()`, which made two of the four roles impossible to sign in as while testing.
  */
 class DemoSeeder extends Seeder
 {
@@ -31,10 +37,34 @@ class DemoSeeder extends Seeder
             'email' => 'admin@example.test',
         ]);
 
-        $trainerOne = TrainerProfile::factory()->create(['business_name' => 'Elite Basketball Academy']);
-        TrainerProfile::factory()->create(['business_name' => 'Northside Volleyball']);
+        $trainerOne = TrainerProfile::factory()->create([
+            'user_id' => User::factory()->trainer()->create([
+                'first_name' => 'Elite',
+                'last_name' => 'Owner',
+                'email' => 'trainer@example.test',
+            ])->id,
+            'business_name' => 'Elite Basketball Academy',
+            'primary_color' => '#C2410C',
+        ]);
 
-        CoachProfile::factory()->create(['trainer_profile_id' => $trainerOne->id]);
+        TrainerProfile::factory()->create([
+            'user_id' => User::factory()->trainer()->create([
+                'first_name' => 'Northside',
+                'last_name' => 'Owner',
+                'email' => 'trainer2@example.test',
+            ])->id,
+            'business_name' => 'Northside Volleyball',
+            'primary_color' => '#1D4ED8',
+        ]);
+
+        $coach = CoachProfile::factory()->create([
+            'user_id' => User::factory()->coach()->create([
+                'first_name' => 'Chris',
+                'last_name' => 'Coach',
+                'email' => 'coach@example.test',
+            ])->id,
+            'trainer_profile_id' => $trainerOne->id,
+        ]);
 
         $parent = User::factory()->create([
             'first_name' => 'Sarah',
@@ -73,6 +103,7 @@ class DemoSeeder extends Seeder
             ]);
 
         $this->seedAssociations($trainerOne, $parent, $maya);
+        $this->seedAvailability($trainerOne, $parent->playerProfile()->firstOrFail(), $maya, $coach);
     }
 
     /**
@@ -100,6 +131,56 @@ class DemoSeeder extends Seeder
         ShareLink::factory()->coach('pending.coach@example.test')->create([
             'trainer_profile_id' => $trainerOne->id,
             'created_by_user_id' => $owner->id,
+        ]);
+    }
+
+    /**
+     * Slice D's half: all three availability shapes, so the Best Times screen is not empty and a
+     * regression in Decision 3's "an override wholly replaces the default" rule is visible by eye.
+     *
+     * - The parent keeps a plain default set (`trainer_profile_id` NULL), applying everywhere.
+     * - Maya has a default set *and* an override for Elite, so the two organisations legitimately
+     *   see different times for the same child — the case the nullable column exists for.
+     * - The coach gets their own fixed weekly schedule plus one "Not Available" day (FR-014's
+     *   other half), which is what makes `CoachConflictChecker` report a conflict for that day.
+     */
+    protected function seedAvailability(
+        TrainerProfile $trainerOne,
+        PlayerProfile $parentProfile,
+        PlayerProfile $maya,
+        CoachProfile $coach,
+    ): void {
+        foreach ([DayOfWeek::Tuesday, DayOfWeek::Thursday] as $day) {
+            Availability::factory()->forSubject($parentProfile)->create([
+                'day_of_week' => $day,
+                'start_time' => '18:00:00',
+                'end_time' => '21:00:00',
+            ]);
+        }
+
+        Availability::factory()->forSubject($maya)->create([
+            'day_of_week' => DayOfWeek::Monday,
+            'start_time' => '16:00:00',
+            'end_time' => '19:00:00',
+        ]);
+
+        // The override: for Elite only, Maya trains earlier. Northside still reads the default.
+        Availability::factory()->forSubject($maya)->override($trainerOne)->create([
+            'day_of_week' => DayOfWeek::Monday,
+            'start_time' => '15:00:00',
+            'end_time' => '17:00:00',
+        ]);
+
+        foreach ([DayOfWeek::Monday, DayOfWeek::Wednesday] as $day) {
+            Availability::factory()->coach($coach)->create([
+                'day_of_week' => $day,
+                'start_time' => '09:00:00',
+                'end_time' => '13:00:00',
+            ]);
+        }
+
+        Availability::factory()->coach($coach)->unavailable()->create([
+            'day_of_week' => DayOfWeek::Sunday,
         ]);
     }
 

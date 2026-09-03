@@ -1,0 +1,91 @@
+#!/usr/bin/env bash
+
+## Description: Install dependencies, migrate, seed, and build assets — first-run setup
+## Usage: init [--fresh]
+## Example: "ddev init" for a fresh clone, "ddev init --fresh" to reset the database
+
+set -euo pipefail
+
+cd "${DDEV_APPROOT}"
+
+FRESH=""
+if [ "${1:-}" = "--fresh" ]; then
+    FRESH="yes"
+fi
+
+# Only start when it is not already up. A redundant `ddev start` re-runs the hostname check,
+# which needs sudo on Linux and fails outright in a non-interactive shell — so an unconditional
+# start would break re-runs and CI for a project that is already running perfectly well.
+if ddev describe >/dev/null 2>&1; then
+    echo "==> DDEV already running"
+else
+    echo "==> Starting DDEV (may prompt for sudo to add the .ddev.site hostname)"
+    ddev start
+fi
+
+# DDEV's laravel project type writes .env on first start, but a clone whose .env was never
+# created (or was deleted) still needs one before artisan can boot.
+if [ ! -f .env ]; then
+    echo "==> Creating .env from .env.example"
+    cp .env.example .env
+fi
+
+echo "==> Installing PHP dependencies"
+ddev composer install
+
+# APP_KEY is empty in .env.example, and every session cookie and encrypted column depends on
+# it. Generating only when absent keeps a re-run from invalidating existing sessions.
+if ! grep -qE '^APP_KEY=.+' .env; then
+    echo "==> Generating application key"
+    ddev exec php artisan key:generate
+fi
+
+echo "==> Installing JavaScript dependencies"
+ddev npm install
+
+echo "==> Building front-end assets"
+ddev npm run build
+
+# Trainer logos (FR-019) are written to the public disk and served through this symlink. It is
+# gitignored, so every fresh clone and every new environment has to create it.
+if [ -e public/storage ]; then
+    echo "==> Public storage already linked"
+else
+    echo "==> Linking public storage"
+    ddev exec php artisan storage:link
+fi
+
+if [ -n "$FRESH" ]; then
+    echo "==> Rebuilding the database from scratch and seeding the demo scenario"
+    ddev exec php artisan migrate:fresh --seed
+else
+    echo "==> Running migrations"
+    ddev exec php artisan migrate
+
+    # Seed only an empty database: re-seeding a populated one duplicates the demo accounts and
+    # collides on the unique email index (BR-001).
+    USER_COUNT="$(ddev exec php artisan tinker --execute='echo \App\Models\User::count();' 2>/dev/null | tr -dc '0-9' || echo '')"
+
+    if [ "${USER_COUNT:-0}" = "0" ]; then
+        echo "==> Seeding the demo scenario"
+        ddev exec php artisan db:seed
+    else
+        echo "==> Database already populated; skipping seed (use 'ddev init --fresh' to reset)"
+    fi
+fi
+
+cat <<'BANNER'
+
+Ready. Open https://laravel-accelerator.ddev.site
+
+Demo accounts — password for all of them is: password
+
+  admin@example.test     Super Admin  users directory, impersonation, deactivate, GDPR delete
+  trainer@example.test   Trainer      Elite Basketball Academy: roster, coaches, branding
+  trainer2@example.test  Trainer      Northside Volleyball: the tenant-isolation counterpart
+  coach@example.test     Coach        My Times
+  parent@example.test    Parent       family, children, approvals, Best Times
+  parent2@example.test   Parent       Maya's second guardian
+  child@example.test     Child login  the restricted-abilities account
+
+BANNER
