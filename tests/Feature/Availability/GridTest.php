@@ -172,4 +172,86 @@ final class GridTest extends TestCase
 
         Livewire::actingAs($stranger)->test(Grid::class)->assertForbidden();
     }
+
+    /**
+     * Gap 7: `'9:00' <= '10:00'` is false under a *string* comparison — '1' sorts before '9' — so
+     * this exact range used to be rejected as "end before start" even though 10:00 genuinely comes
+     * after 9:00. Comparing as times, not strings, fixes it.
+     */
+    #[Test]
+    public function a_single_digit_hour_start_time_is_not_misread_as_after_a_double_digit_end_time(): void
+    {
+        $player = User::factory()->create();
+        PlayerProfile::factory()->selfProfile($player)->create();
+
+        Livewire::actingAs($player)
+            ->test(Grid::class)
+            ->set('ranges', [['day_of_week' => 1, 'start_time' => '9:00', 'end_time' => '10:00']])
+            ->call('save')
+            ->assertHasNoErrors();
+    }
+
+    /**
+     * Gap 7: a malformed value must never reach the `TIME` column as a concatenated string — that
+     * is a 500 under strict SQL mode, not a validation error.
+     */
+    #[Test]
+    public function a_malformed_time_is_a_field_error_not_a_500(): void
+    {
+        $player = User::factory()->create();
+        PlayerProfile::factory()->selfProfile($player)->create();
+
+        Livewire::actingAs($player)
+            ->test(Grid::class)
+            ->set('ranges', [['day_of_week' => 1, 'start_time' => 'abc', 'end_time' => 'abd']])
+            ->call('save')
+            ->assertHasErrors(['ranges.0.start_time']);
+    }
+
+    /**
+     * Gap 7: a browser's `<input type="time" step="...">` can submit seconds. Concatenating that
+     * straight onto `:00` used to produce `'17:00:00:00'` for the `TIME` column — a 500, not a
+     * field error.
+     */
+    #[Test]
+    public function a_time_carrying_seconds_is_a_field_error_not_a_500(): void
+    {
+        $player = User::factory()->create();
+        PlayerProfile::factory()->selfProfile($player)->create();
+
+        Livewire::actingAs($player)
+            ->test(Grid::class)
+            ->set('ranges', [['day_of_week' => 1, 'start_time' => '17:00:00', 'end_time' => '20:00']])
+            ->call('save')
+            ->assertHasErrors(['ranges.0.start_time']);
+    }
+
+    /** An empty Start field must report on Start, not on End (the bug the missing `<x-slot:error>` masked). */
+    #[Test]
+    public function an_empty_start_time_reports_its_own_error(): void
+    {
+        $player = User::factory()->create();
+        PlayerProfile::factory()->selfProfile($player)->create();
+
+        Livewire::actingAs($player)
+            ->test(Grid::class)
+            ->set('ranges', [['day_of_week' => 1, 'start_time' => '', 'end_time' => '20:00']])
+            ->call('save')
+            ->assertHasErrors(['ranges.0.start_time'])
+            ->assertHasNoErrors(['ranges.0.end_time']);
+    }
+
+    /** A missing array key must not be an undefined-index warning — it is simply an invalid, empty time. */
+    #[Test]
+    public function a_missing_time_key_is_a_field_error_not_a_warning(): void
+    {
+        $player = User::factory()->create();
+        PlayerProfile::factory()->selfProfile($player)->create();
+
+        Livewire::actingAs($player)
+            ->test(Grid::class)
+            ->set('ranges', [['day_of_week' => 1, 'start_time' => '17:00']])
+            ->call('save')
+            ->assertHasErrors(['ranges.0.end_time']);
+    }
 }

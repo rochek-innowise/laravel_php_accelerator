@@ -60,4 +60,17 @@ final class CoachAvailabilityOverridePolicyTest extends TestCase
 
         $this->assertFalse($this->policy->create($player, $coach));
     }
+
+    /**
+     * Gap 8: there is no `Gate::policy` registration, so convention discovery auto-binds this
+     * class to `App\Models\CoachAvailabilityOverride` by name alone — a future
+     * `authorize('create', $overrideRow)` reaching here must be refused, not fatal.
+     */
+    #[Test]
+    public function an_unexpected_subject_type_is_refused_rather_than_fatal(): void
+    {
+        $trainerProfile = TrainerProfile::factory()->create();
+
+        $this->assertFalse($this->policy->create($trainerProfile->user, $trainerProfile));
+    }
 }

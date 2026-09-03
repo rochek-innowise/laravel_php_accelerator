@@ -2,6 +2,13 @@
     <x-ui.page-head eyebrow="Admin" title="Impersonation history" sub="Every session, started or still open" />
 
     <x-ui.card class="mt-6">
+        <form role="search" wire:submit.prevent class="flex flex-col gap-1.5 sm:max-w-sm">
+            <label for="targetEmail" class="font-mono text-xs font-bold uppercase tracking-wide text-ink-soft">Filter by target email</label>
+            <input id="targetEmail" type="search" wire:model.live.debounce.400ms="targetEmail" placeholder="every session against this user" class="control">
+        </form>
+    </x-ui.card>
+
+    <x-ui.card class="mt-6">
         <div class="overflow-x-auto">
             <table class="w-full text-left text-sm">
                 <caption class="sr-only">Impersonation history</caption>

@@ -6,6 +6,7 @@ namespace Tests\Feature\Authorization;
 
 use App\Models\CoachProfile;
 use App\Models\PlayerProfile;
+use App\Models\TrainerProfile;
 use App\Models\User;
 use App\Policies\AvailabilityPolicy;
 use PHPUnit\Framework\Attributes\Test;
@@ -84,5 +85,19 @@ final class AvailabilityPolicyTest extends TestCase
         $otherCoach = CoachProfile::factory()->create()->user;
 
         $this->assertFalse($this->policy->update($otherCoach, $coachProfile));
+    }
+
+    /**
+     * Gap 8: there is no `Gate::policy` registration, so Laravel's convention discovery auto-binds
+     * this class to `App\Models\Availability` by name alone — a future
+     * `authorize('update', $availabilityRow)` reaching here must be refused, not fatal.
+     */
+    #[Test]
+    public function an_unexpected_subject_type_is_refused_rather_than_fatal(): void
+    {
+        $user = User::factory()->create();
+        $unexpectedSubject = TrainerProfile::factory()->create();
+
+        $this->assertFalse($this->policy->update($user, $unexpectedSubject));
     }
 }

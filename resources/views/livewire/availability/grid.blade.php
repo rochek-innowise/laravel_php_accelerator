@@ -37,6 +37,7 @@
 
                     <x-ui.field label="Start" for="ranges.{{ $index }}.start_time">
                         <input type="time" wire:model="ranges.{{ $index }}.start_time" class="control">
+                        <x-slot:error>@error("ranges.{$index}.start_time"){{ $message }}@enderror</x-slot:error>
                     </x-ui.field>
 
                     <x-ui.field label="End" for="ranges.{{ $index }}.end_time">

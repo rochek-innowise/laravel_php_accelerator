@@ -43,7 +43,13 @@ final class Grid extends Component
     #[Locked]
     public bool $isCoach = false;
 
-    /** @var list<array{day_of_week: int|string, start_time: string, end_time: string}> */
+    /**
+     * A plain public (not `#[Locked]`) property, bound by `wire:model` from the browser — a
+     * tampered payload can omit any key entirely, so every key here is optional as far as PHP (and
+     * PHPStan) is concerned, whatever the happy-path shape actually looks like.
+     *
+     * @var list<array{day_of_week?: int|string, start_time?: string, end_time?: string}>
+     */
     public array $ranges = [];
 
     public function mount(): void
@@ -151,6 +157,14 @@ final class Grid extends Component
     }
 
     /**
+     * Gap 7: `$start`/`$end` used to be concatenated straight into a `TIME` literal on nothing
+     * more than a non-empty check and a *string* `<=` comparison — `'9:00' > '10:00'` lexically,
+     * and `'abc'`/`'abd'` passes both checks and reaches MariaDB as `'abc:00'`, a 500 rather than a
+     * field error. A browser's `<input type="time" step="...">` can also submit `HH:MM:SS`, which
+     * concatenation would turn into `'17:00:00:00'` the same way. `date_format:H:i` rejects
+     * anything not already exactly that shape before either string ever reaches a comparison or a
+     * query, and the times are then compared as actual times (via `strtotime`), never as strings.
+     *
      * @return list<array{day_of_week: int, start_time: string, end_time: string, is_available: bool}>
      */
     protected function validatedRanges(): array
@@ -158,15 +172,23 @@ final class Grid extends Component
         $result = [];
 
         foreach ($this->ranges as $index => $range) {
-            $day = filter_var($range['day_of_week'], FILTER_VALIDATE_INT);
-            $start = trim((string) $range['start_time']);
-            $end = trim((string) $range['end_time']);
+            $day = filter_var($range['day_of_week'] ?? null, FILTER_VALIDATE_INT);
+            $start = trim((string) ($range['start_time'] ?? ''));
+            $end = trim((string) ($range['end_time'] ?? ''));
 
             if ($day === false || $day < 0 || $day > 6) {
                 throw ValidationException::withMessages(["ranges.{$index}.day_of_week" => 'Choose a day.']);
             }
 
-            if ($start === '' || $end === '' || $end <= $start) {
+            if (! $this->isValidTime($start)) {
+                throw ValidationException::withMessages(["ranges.{$index}.start_time" => 'Enter a valid time.']);
+            }
+
+            if (! $this->isValidTime($end)) {
+                throw ValidationException::withMessages(["ranges.{$index}.end_time" => 'Enter a valid time.']);
+            }
+
+            if (strtotime($end) <= strtotime($start)) {
                 throw ValidationException::withMessages(["ranges.{$index}.end_time" => 'End time must be after the start time.']);
             }
 
@@ -179,6 +201,12 @@ final class Grid extends Component
         }
 
         return $result;
+    }
+
+    /** Exactly `H:i` (24-hour, one or two digit hour) — the shape `start_time`/`end_time` must be before `:00` is appended for a `TIME` column. */
+    protected function isValidTime(string $value): bool
+    {
+        return preg_match('/^([01]?\d|2[0-3]):[0-5]\d$/', $value) === 1;
     }
 
     protected function authorizeSubject(): void
