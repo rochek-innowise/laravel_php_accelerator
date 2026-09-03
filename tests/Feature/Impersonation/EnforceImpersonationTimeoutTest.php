@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Tests\Feature\Impersonation;
 
+use App\Enums\Role;
 use App\Enums\UserStatus;
 use App\Models\ImpersonationLog;
 use App\Models\User;
@@ -39,6 +40,26 @@ final class EnforceImpersonationTimeoutTest extends TestCase
 
         $log = ImpersonationLog::query()->where('target_user_id', $target->id)->sole();
         $this->assertNotNull($log->ended_at);
+    }
+
+    /**
+     * Finding 7: this path (a live request arriving long after the timeout) must record the same
+     * duration CloseStaleImpersonationLogsJob would have for the identical session — the 60-minute
+     * ceiling, not the raw elapsed wall-clock time. An unclamped value here would also wrap past
+     * midnight in impersonation-history.blade.php's `gmdate('H:i:s', $duration)`.
+     */
+    public function test_a_stale_session_via_the_middleware_path_clamps_duration_to_the_timeout_ceiling(): void
+    {
+        $admin = User::factory()->superAdmin()->create();
+        $target = User::factory()->create();
+
+        $this->startImpersonation($admin, $target);
+        $this->backdateSessionStart(25 * 60);
+
+        $this->get('/dashboard');
+
+        $log = ImpersonationLog::query()->where('target_user_id', $target->id)->sole();
+        $this->assertSame(3600, $log->duration_seconds);
     }
 
     public function test_a_request_at_59_minutes_passes_through_untouched(): void
@@ -80,5 +101,31 @@ final class EnforceImpersonationTimeoutTest extends TestCase
         $this->actingAs($player)
             ->get('/dashboard')
             ->assertRedirect(route($player->role->dashboardRoute()));
+    }
+
+    /**
+     * Finding 6 (BR-016 continuous enforcement): a second Super Admin promoting the live
+     * impersonated target mid-session (e.g. via EditUserForm) must not silently turn the
+     * impersonated session into a Super Admin session. This is checked on every request, well
+     * inside the 60-minute timeout window.
+     */
+    public function test_promoting_the_impersonated_target_to_super_admin_force_stops_the_session(): void
+    {
+        $admin = User::factory()->superAdmin()->create();
+        $target = User::factory()->create();
+
+        $this->startImpersonation($admin, $target);
+
+        $target->forceFill(['role' => Role::SuperAdmin])->save();
+
+        $this->get('/dashboard')
+            ->assertRedirect(route('dashboard'))
+            ->assertSessionHas('status', 'Impersonation ended: the account you were viewing became a Super Admin.');
+
+        $this->assertSame($admin->id, auth()->id());
+        $this->assertNull(session('impersonator_id'));
+
+        $log = ImpersonationLog::query()->where('target_user_id', $target->id)->sole();
+        $this->assertNotNull($log->ended_at);
     }
 }
