@@ -55,8 +55,19 @@
                             <td class="whitespace-nowrap px-3 py-2">
                                 <div class="flex flex-nowrap items-center gap-2">
                                     <a href="{{ route('admin.users.edit', $user) }}" class="link">Edit</a>
-                                    {{-- Slice D: impersonate, deactivate, delete. --}}
-                                    <button type="button" disabled class="btn-quiet btn-quiet-compact">Impersonate</button>
+
+                                    @can('impersonate', $user)
+                                        <form
+                                            method="POST"
+                                            action="{{ route('admin.impersonate.start', $user) }}"
+                                            onsubmit="return confirm('Impersonate {{ $user->name }}? Every action taken will be attributed to both of you.');"
+                                        >
+                                            @csrf
+                                            <button type="submit" class="btn-quiet btn-quiet-compact">Impersonate</button>
+                                        </form>
+                                    @endcan
+
+                                    {{-- Slice D Track C: deactivate, delete. --}}
                                     <button type="button" disabled class="btn-quiet btn-quiet-compact">Deactivate</button>
                                     <button type="button" disabled class="btn-quiet btn-quiet-compact">Delete</button>
                                 </div>

@@ -7,6 +7,7 @@ use App\Http\Controllers\DashboardController;
 use App\Http\Controllers\ProfilePhotoController;
 use App\Livewire\Admin\CreateTrainerForm;
 use App\Livewire\Admin\EditUserForm;
+use App\Livewire\Admin\ImpersonationHistory;
 use App\Livewire\Admin\UsersTable;
 use App\Livewire\Availability\Grid;
 use App\Livewire\Family\ChildForm;
@@ -96,6 +97,8 @@ Route::middleware(['auth'])->group(function (): void {
             // FR-012. POST and CSRF-protected — a GET impersonation route would be trivially
             // CSRF-exploitable. The Gate::authorize('impersonate', ...) call lives in the Action.
             Route::post('/impersonate/{user}', [ImpersonationController::class, 'start'])->name('impersonate.start');
+
+            Route::get('/impersonation-history', ImpersonationHistory::class)->name('impersonation-history');
         });
     });
 });

@@ -137,4 +137,17 @@ final class UsersDirectoryTest extends TestCase
 
         $this->assertLessThanOrEqual(2, $queryCount);
     }
+
+    /** FR-012: the row action is visible per @can('impersonate', $user), not a blanket button. */
+    public function test_the_impersonate_form_is_visible_only_for_an_eligible_target(): void
+    {
+        $admin = User::factory()->superAdmin()->create();
+        $eligible = User::factory()->create();
+        $otherAdmin = User::factory()->superAdmin()->create();
+
+        Livewire::actingAs($admin)
+            ->test(UsersTable::class)
+            ->assertSeeHtml(route('admin.impersonate.start', $eligible))
+            ->assertDontSeeHtml(route('admin.impersonate.start', $otherAdmin));
+    }
 }
