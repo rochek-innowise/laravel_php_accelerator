@@ -6,6 +6,7 @@ namespace App\Providers;
 
 use App\Contracts\ApprovedPurchaseExecutor;
 use App\Listeners\AuditAuthenticationEvents;
+use App\Listeners\StopImpersonationOnLogout;
 use App\Models\User;
 use App\Services\Approval\NullPurchaseExecutor;
 use App\Support\Authorization\ChildAbilities;
@@ -71,6 +72,7 @@ class AppServiceProvider extends ServiceProvider
         $this->registerGates();
         $this->recordSuccessfulLogins();
         $this->auditAuthenticationEvents();
+        $this->stopImpersonationOnLogout();
     }
 
     /**
@@ -157,6 +159,16 @@ class AppServiceProvider extends ServiceProvider
         Event::listen(Login::class, [AuditAuthenticationEvents::class, 'auditLogin']);
         Event::listen(Logout::class, [AuditAuthenticationEvents::class, 'auditLogout']);
         Event::listen(Failed::class, [AuditAuthenticationEvents::class, 'auditFailed']);
+    }
+
+    /**
+     * Slice D finding 4: a plain logout while impersonating must not orphan the ImpersonationLog
+     * row. See StopImpersonationOnLogout's own docblock for why the Logout event is the last
+     * point this can still run.
+     */
+    protected function stopImpersonationOnLogout(): void
+    {
+        Event::listen(Logout::class, [StopImpersonationOnLogout::class, 'handle']);
     }
 
     protected function isImpersonating(): bool
