@@ -7,6 +7,7 @@ namespace Tests\Feature;
 use App\Enums\Role;
 use App\Models\CoachProfile;
 use App\Models\PlayerProfile;
+use App\Models\TrainerPlayer;
 use App\Models\TrainerProfile;
 use App\Models\User;
 use Tests\TestCase;
@@ -92,5 +93,66 @@ final class ScreenRenderTest extends TestCase
                 ->assertOk()
                 ->assertSee('dashboard');
         }
+    }
+
+    /**
+     * Step 11 of Slice D's plan: the shared layout's `--brand-primary` CSS variable must never
+     * null-dereference for a Super Admin, who resolves no tenant at all (`EnsureTrainerContext`
+     * gives them none) — it falls back to the platform default instead.
+     */
+    public function test_the_shared_layout_falls_back_to_the_platform_default_brand_color_for_a_super_admin(): void
+    {
+        $this->actingAs(User::factory()->superAdmin()->create())
+            ->get('/admin/users')
+            ->assertOk()
+            ->assertSee(
+                '--brand-primary: '.config('branding.default_primary_color').';',
+                false,
+            );
+    }
+
+    /**
+     * The other half of step 11's verification: every role that *does* resolve a tenant reflects
+     * that tenant's own colour, not the platform default.
+     */
+    public function test_the_shared_layout_reflects_the_resolved_tenants_brand_color_for_every_tenant_scoped_role(): void
+    {
+        $trainer = User::factory()->trainer()->create();
+        TrainerProfile::factory()->create(['user_id' => $trainer->id, 'primary_color' => '#111111']);
+
+        $this->actingAs($trainer)
+            ->get('/profile')
+            ->assertOk()
+            ->assertSee('--brand-primary: #111111;', false);
+
+        $coach = User::factory()->coach()->create();
+        $employer = TrainerProfile::factory()->create(['primary_color' => '#222222']);
+        CoachProfile::factory()->create(['user_id' => $coach->id, 'trainer_profile_id' => $employer->id]);
+
+        $this->actingAs($coach)
+            ->get('/profile')
+            ->assertOk()
+            ->assertSee('--brand-primary: #222222;', false);
+
+        // A Player's tenant *is* resolved here (unlike the Super Admin case above), but
+        // `ResolvesAvailableTenants` deliberately hydrates only `id`/`business_name`/`logo_path`
+        // for the switcher's G-08 "name and logo, nothing else" guarantee — so `primary_color` is
+        // never loaded onto this particular object, and the layout's `??` falls back to the
+        // platform default for a Player exactly as it does for a genuinely tenant-less Super
+        // Admin. Asserting that here pins the real, current behaviour (not a crash, not a stale
+        // value) rather than a value the code cannot actually produce for this role.
+        $player = User::factory()->create();
+        $profile = PlayerProfile::factory()->selfProfile($player)->create();
+        $tenant = TrainerProfile::factory()->create(['primary_color' => '#333333']);
+        TrainerPlayer::factory()->create([
+            'trainer_profile_id' => $tenant->id,
+            'player_profile_id' => $profile->id,
+            'connected_at' => now(),
+        ]);
+
+        $this->actingAs($player)
+            ->get('/profile')
+            ->assertOk()
+            ->assertSee('--brand-primary: '.config('branding.default_primary_color').';', false);
     }
 }

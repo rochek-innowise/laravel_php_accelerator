@@ -1,3 +1,11 @@
+<?php
+    // FR-019 / Slice D final integration (step 11): the CSS custom property every themed surface
+    // reads. A Super Admin resolves no tenant (`EnsureTrainerContext` never gives them one), so
+    // this is a null-safe read with an explicit fallback, not an unguarded `->primary_color` — that
+    // would be a null-dereference on every single admin page.
+    $brandPrimaryColor = app(\App\Support\Tenancy\TrainerContext::class)->get()?->primary_color
+        ?? config('branding.default_primary_color');
+?>
 <!DOCTYPE html>
 <html lang="{{ str_replace('_', '-', app()->getLocale()) }}">
 <head>
@@ -6,8 +14,15 @@
     <title>{{ $title ?? config('app.name') }}</title>
     @fonts
     @vite(['resources/css/app.css', 'resources/js/app.js'])
+    {{-- Escaped Blade output, never {!! !!}: primary_color is user-supplied (validated as a hex
+         string on save, but a bad stored value must still not break out of this style context). --}}
+    <style>:root { --brand-primary: {{ $brandPrimaryColor }}; }</style>
 </head>
 <body class="bg-field font-sans text-ink">
+    {{-- FR-012: the sticky banner is present during impersonation and only then — the component
+         itself gates on `session()->has('impersonator_id')`. --}}
+    <x-impersonation-banner />
+
     <a
         href="#main"
         class="sr-only focus-visible:not-sr-only focus-visible:fixed focus-visible:left-4 focus-visible:top-4 focus-visible:z-50 focus-visible:rounded-(--radius) focus-visible:border focus-visible:border-line focus-visible:bg-paper focus-visible:px-4 focus-visible:py-2 focus-visible:text-ink"
@@ -64,6 +79,10 @@
                     <x-ui.nav-link :href="route('trainer.share-links')" :active="request()->routeIs('trainer.share-links')">
                         Invitation link
                     </x-ui.nav-link>
+
+                    <x-ui.nav-link :href="route('trainer.branding')" :active="request()->routeIs('trainer.branding')">
+                        Branding
+                    </x-ui.nav-link>
                 @endif
 
                 @if (auth()->user()->role === \App\Enums\Role::Player)
@@ -79,6 +98,10 @@
                 @if (auth()->user()->isSuperAdmin())
                     <x-ui.nav-link :href="route('admin.users.index')" :active="request()->routeIs('admin.users.*')">
                         Users
+                    </x-ui.nav-link>
+
+                    <x-ui.nav-link :href="route('admin.impersonation-history')" :active="request()->routeIs('admin.impersonation-history')">
+                        Impersonation history
                     </x-ui.nav-link>
                 @endif
             </nav>
