@@ -10,6 +10,7 @@ use App\Actions\Admin\ReactivateUser;
 use App\Actions\Admin\StartImpersonation;
 use App\Enums\Role;
 use App\Enums\UserStatus;
+use App\Exceptions\UserLifecycleException;
 use App\Models\User;
 use Illuminate\Contracts\View\View;
 use Illuminate\Database\Eloquent\Builder;
@@ -78,11 +79,24 @@ final class UsersTable extends Component
         $this->redirect(route('dashboard'), navigate: true);
     }
 
+    /**
+     * Finding 5 (Slice D): the Blade `@if`/`@can` guards only hide the button — this endpoint is
+     * directly invokable via `/livewire/update`, and a crafted call against an already-`Deleted`
+     * user reached `UserLifecycleException` uncaught, a 500 (with a stack-trace leak were
+     * `APP_DEBUG` ever true in production). Caught the same way `Branding::save()` handles
+     * `TrainerLogoException`: a field error instead of a fatal one.
+     */
     public function deactivate(User $user, DeactivateUser $deactivateUser): void
     {
         $this->authorize('deactivate', $user);
 
-        $deactivateUser->handle($user);
+        try {
+            $deactivateUser->handle($user);
+        } catch (UserLifecycleException $e) {
+            $this->addError('lifecycle', $e->getMessage());
+
+            return;
+        }
 
         session()->flash('status', "{$user->name} has been deactivated.");
     }
@@ -91,7 +105,13 @@ final class UsersTable extends Component
     {
         $this->authorize('reactivate', $user);
 
-        $reactivateUser->handle($user);
+        try {
+            $reactivateUser->handle($user);
+        } catch (UserLifecycleException $e) {
+            $this->addError('lifecycle', $e->getMessage());
+
+            return;
+        }
 
         session()->flash('status', "{$user->name} has been reactivated.");
     }
@@ -100,7 +120,13 @@ final class UsersTable extends Component
     {
         $this->authorize('delete', $user);
 
-        $anonymizeUser->handle($user, $this->actor());
+        try {
+            $anonymizeUser->handle($user, $this->actor());
+        } catch (UserLifecycleException $e) {
+            $this->addError('lifecycle', $e->getMessage());
+
+            return;
+        }
 
         session()->flash('status', "{$user->name}'s personal data has been permanently anonymized.");
     }

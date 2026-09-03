@@ -4,12 +4,15 @@ declare(strict_types=1);
 
 namespace Tests\Feature;
 
+use App\Actions\Profile\StoreProfilePhoto;
 use App\Livewire\ProfileForm;
 use App\Models\User;
 use Illuminate\Http\UploadedFile;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Facades\URL;
 use Livewire\Livewire;
+use RuntimeException;
 use Tests\TestCase;
 
 /** FR-016 photo half: private disk, sniffed MIME, thumbnail, signed serving (AD-020). */
@@ -202,6 +205,58 @@ final class ProfilePhotoTest extends TestCase
         ]);
 
         $this->actingAs($user->fresh())->get($expired)->assertForbidden();
+    }
+
+    /**
+     * Gap 3: a filesystem delete can't be rolled back, so `StoreProfilePhoto::remove()` must never
+     * let it run ahead of the DB write it depends on. A caller (GDPR erasure, in particular) that
+     * wraps `remove()` in a transaction which then fails must be left with the photo it already
+     * had, not a dangling `photo_path` reference to a file that no longer exists.
+     */
+    public function test_a_transaction_rollback_after_removing_a_photo_leaves_the_file_and_column_untouched(): void
+    {
+        $user = User::factory()->create();
+
+        Livewire::actingAs($user)
+            ->test(ProfileForm::class)
+            ->set('photo', UploadedFile::fake()->image('me.jpg'))
+            ->call('save');
+
+        $path = $user->fresh()->photo_path;
+
+        try {
+            DB::transaction(function () use ($user): void {
+                app(StoreProfilePhoto::class)->remove($user);
+
+                throw new RuntimeException('Simulated failure after the photo column was nulled.');
+            });
+        } catch (RuntimeException) {
+            // Expected — the assertions below are the point of the test.
+        }
+
+        $this->assertSame($path, $user->fresh()->photo_path);
+        Storage::disk('local')->assertExists($path);
+        Storage::disk('local')->assertExists(User::thumbnailPathFor($path));
+    }
+
+    public function test_a_committed_transaction_deletes_the_photo_after_the_column_is_nulled(): void
+    {
+        $user = User::factory()->create();
+
+        Livewire::actingAs($user)
+            ->test(ProfileForm::class)
+            ->set('photo', UploadedFile::fake()->image('me.jpg'))
+            ->call('save');
+
+        $path = $user->fresh()->photo_path;
+
+        DB::transaction(function () use ($user): void {
+            app(StoreProfilePhoto::class)->remove($user);
+        });
+
+        $this->assertNull($user->fresh()->photo_path);
+        Storage::disk('local')->assertMissing($path);
+        Storage::disk('local')->assertMissing(User::thumbnailPathFor($path));
     }
 
     public function test_a_user_without_a_photo_gets_a_404(): void

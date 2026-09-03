@@ -8,6 +8,7 @@ use App\Exceptions\ProfilePhotoException;
 use App\Models\PlayerProfile;
 use App\Models\User;
 use Illuminate\Contracts\Filesystem\Filesystem;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Str;
 use Intervention\Image\ImageManager;
@@ -66,15 +67,27 @@ final class StoreProfilePhoto
         return $path;
     }
 
+    /**
+     * Slice D Gap 3: a caller wrapping this in `DB::transaction()` (GDPR erasure, in particular)
+     * cannot roll back a filesystem delete — only the DB write. Nulling the column first and
+     * deferring the actual disk delete to `DB::afterCommit()` keeps the two in the only order that
+     * can't strand a dangling reference: if the transaction rolls back, the callback never runs and
+     * the file is untouched; if it commits, the column is already null by the time the file goes.
+     * `afterCommit()` runs the callback immediately when no transaction is open, so this is safe to
+     * call from a bare (non-transactional) caller like `ProfileForm::removePhoto()` too.
+     */
     public function remove(User|PlayerProfile $owner, bool $withThumbnail = true): void
     {
         if (empty($owner->photo_path)) {
             return;
         }
 
-        $this->disk()->delete($withThumbnail ? [$owner->photo_path, User::thumbnailPathFor($owner->photo_path)] : [$owner->photo_path]);
+        $path = $owner->photo_path;
+        $paths = $withThumbnail ? [$path, User::thumbnailPathFor($path)] : [$path];
 
         $owner->forceFill(['photo_path' => null])->save();
+
+        DB::afterCommit(fn (): bool => $this->disk()->delete($paths));
     }
 
     protected function writeThumbnail(Filesystem $disk, string $path): void

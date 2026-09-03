@@ -10,11 +10,15 @@ use App\Actions\Admin\ReactivateUser;
 use App\Enums\UserStatus;
 use App\Exceptions\UserLifecycleException;
 use App\Models\AuditLog;
+use App\Models\CoachProfile;
 use App\Models\PlayerProfile;
+use App\Models\TrainerProfile;
 use App\Models\User;
 use App\Models\UserDeletionLog;
+use App\Notifications\PurchaseApprovalRequested;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Storage;
+use Illuminate\Support\Str;
 use Tests\TestCase;
 
 /**
@@ -199,15 +203,42 @@ final class UserLifecycleTest extends TestCase
         $this->assertSame($firstLog->email_hash, $secondLog->email_hash);
     }
 
+    /**
+     * Gap 4: the only assertion here used to be on `name`. Decision 7's mapping table names six
+     * fields (plus the photo); deleting any one of them from `anonymizeProfile()`'s `forceFill`
+     * must fail this test.
+     */
     public function test_anonymizing_scrubs_the_targets_own_self_profile(): void
     {
+        Storage::fake('local');
+
         $actor = User::factory()->superAdmin()->create();
         $target = User::factory()->create();
-        $profile = PlayerProfile::factory()->selfProfile($target)->create(['name' => 'Zinaida Petrenko']);
+        $profile = PlayerProfile::factory()->selfProfile($target)->create([
+            'name' => 'Zinaida Petrenko',
+            'birth_date' => '1990-05-01',
+            'gender' => 'female',
+            'school' => 'Kyiv School #5',
+            'jersey_number' => '7',
+            'emergency_contact' => '+1-555-0199',
+        ]);
+        $photoPath = 'profile-photos/players/'.$profile->id.'/original.jpg';
+        Storage::disk('local')->put($photoPath, 'fake-image-bytes');
+        $profile->forceFill(['photo_path' => $photoPath])->save();
 
         app(AnonymizeUser::class)->handle($target, $actor);
 
-        $this->assertSame('Deleted User', $profile->fresh()->name);
+        $profile->refresh();
+
+        $this->assertSame('Deleted User', $profile->name);
+        $this->assertNull($profile->birth_date);
+        $this->assertNull($profile->gender);
+        $this->assertNull($profile->school);
+        $this->assertNull($profile->jersey_number);
+        $this->assertNull($profile->emergency_contact);
+        $this->assertNull($profile->photo_path);
+        // Full-size only, no thumbnail — Slice C Decision 5.
+        Storage::disk('local')->assertMissing($photoPath);
     }
 
     /** Gap 6 — the regression most likely to be silently skipped. */
@@ -253,5 +284,126 @@ final class UserLifecycleTest extends TestCase
         $log = AuditLog::where('action', 'user.anonymized')->where('subject_id', $target->id)->sole();
 
         $this->assertSame('A stated reason', $log->metadata['reason'] ?? null);
+    }
+
+    /**
+     * Gap 1: `notifications.data` persists a plaintext `child_name` in four notification classes.
+     * Both leaks close: the target's own notification history, and any other guardian's
+     * notification that still names a child whose real name was just scrubbed elsewhere.
+     * `test_anonymizing_purges_notifications_...but_leaves_others_alone` below proves the second
+     * half doesn't over-reach into an untouched child's notifications.
+     */
+    public function test_anonymizing_deletes_the_targets_own_notifications(): void
+    {
+        $actor = User::factory()->superAdmin()->create();
+        $target = User::factory()->create();
+
+        $this->insertNotification($target, 999, 'Somebody Else\'s Child');
+
+        app(AnonymizeUser::class)->handle($target, $actor);
+
+        $this->assertSame(
+            0,
+            DB::table('notifications')->where('notifiable_type', User::class)->where('notifiable_id', $target->id)->count()
+        );
+    }
+
+    public function test_anonymizing_purges_notifications_naming_an_anonymized_child_but_leaves_others_alone(): void
+    {
+        $actor = User::factory()->superAdmin()->create();
+        $target = User::factory()->create();
+        $selfProfile = PlayerProfile::factory()->selfProfile($target)->create(['name' => 'Zinaida Petrenko']);
+
+        $coGuardian1 = User::factory()->create();
+        $coGuardian2 = User::factory()->create();
+        $untouchedChild = PlayerProfile::factory()->child()->create(['name' => 'Untouched Child']);
+        $untouchedChild->guardians()->attach([$coGuardian1->id, $coGuardian2->id]);
+
+        // Addressed to another guardian, but names the profile the target's own erasure scrubs.
+        $this->insertNotification($coGuardian1, $selfProfile->id, 'Zinaida Petrenko');
+        // Addressed to, and about, a child untouched by this erasure — must survive untouched.
+        $survivingId = $this->insertNotification($coGuardian1, $untouchedChild->id, 'Untouched Child');
+
+        app(AnonymizeUser::class)->handle($target, $actor);
+
+        $this->assertSame(0, DB::table('notifications')->where('data->player_profile_id', $selfProfile->id)->count());
+        $this->assertDatabaseHas('notifications', ['id' => $survivingId]);
+    }
+
+    /**
+     * Gap 2. `bio`/`credentials`/`certifications` are free text and routinely self-identifying;
+     * `status`/`trainer_profile_id`/`joined_at` are left alone — roster and attendance history
+     * read those.
+     */
+    public function test_anonymizing_scrubs_the_targets_own_coach_identity(): void
+    {
+        $actor = User::factory()->superAdmin()->create();
+        $trainerProfile = TrainerProfile::factory()->create();
+        $coach = CoachProfile::factory()->create([
+            'trainer_profile_id' => $trainerProfile->id,
+            'bio' => 'Ex-professional midfielder, coaching since 2010.',
+            'credentials' => 'UEFA A License',
+            'certifications' => 'First Aid, Safeguarding',
+            'is_public' => true,
+        ]);
+        $target = $coach->user;
+
+        app(AnonymizeUser::class)->handle($target, $actor);
+
+        $coach->refresh();
+        $this->assertNull($coach->bio);
+        $this->assertNull($coach->credentials);
+        $this->assertNull($coach->certifications);
+        // Not personal/identifying data (Gap 2) — attendance/roster rendering still needs these.
+        $this->assertSame('active', $coach->status->value);
+        $this->assertSame($trainerProfile->id, $coach->trainer_profile_id);
+    }
+
+    /**
+     * Gap 2. No carve-out: a trainer's business identity is scrubbed the same way a deleted
+     * user's own name is — "Deleted Organisation", matching BR-018's "rendering as Deleted User"
+     * pattern — since for a sole trader `business_name`/`address` unambiguously are personal data.
+     * `logo_path`/`primary_color` are untouched: the finding names free text/identifying columns
+     * only, and those two are visual branding rather than identifying text.
+     */
+    public function test_anonymizing_scrubs_the_targets_own_trainer_business_identity(): void
+    {
+        $actor = User::factory()->superAdmin()->create();
+        $trainer = TrainerProfile::factory()->create([
+            'business_name' => 'Acme Sports Academy',
+            'address' => '123 Main Street',
+            'website' => 'https://acme-sports.test',
+            'description' => 'A friendly neighbourhood club.',
+            'primary_color' => '#0EA5E9',
+        ]);
+        $target = $trainer->user;
+
+        app(AnonymizeUser::class)->handle($target, $actor);
+
+        $trainer->refresh();
+        $this->assertSame('Deleted Organisation', $trainer->business_name);
+        $this->assertSame('deleted-organisation-'.$trainer->id, $trainer->slug);
+        $this->assertNull($trainer->address);
+        $this->assertNull($trainer->website);
+        $this->assertNull($trainer->description);
+        $this->assertSame('#0EA5E9', $trainer->primary_color);
+    }
+
+    protected function insertNotification(User $notifiable, int $playerProfileId, string $childName): string
+    {
+        $id = (string) Str::uuid();
+
+        DB::table('notifications')->insert([
+            'id' => $id,
+            'type' => PurchaseApprovalRequested::class,
+            'notifiable_type' => User::class,
+            'notifiable_id' => $notifiable->id,
+            'data' => json_encode(['player_profile_id' => $playerProfileId, 'child_name' => $childName]),
+            'read_at' => null,
+            'created_at' => now(),
+            'updated_at' => now(),
+        ]);
+
+        return $id;
     }
 }

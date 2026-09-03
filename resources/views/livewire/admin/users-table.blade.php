@@ -3,6 +3,10 @@
         <a href="{{ route('admin.users.create') }}" class="btn">Create trainer</a>
     </x-ui.page-head>
 
+    @error('lifecycle')
+        <p role="alert" class="mt-4 text-sm text-foul">{{ $message }}</p>
+    @enderror
+
     <x-ui.card class="mt-6">
         <form role="search" wire:submit.prevent class="grid gap-4 sm:grid-cols-3">
             <div class="flex flex-col gap-1.5">

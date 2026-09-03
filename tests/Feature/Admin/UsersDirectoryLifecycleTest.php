@@ -100,4 +100,43 @@ final class UsersDirectoryLifecycleTest extends TestCase
 
         $this->assertSame('Deleted User', $child->fresh()->name);
     }
+
+    /**
+     * Finding 5: the Blade `@if`/`@can` guards only hide the buttons — `delete`/`deactivate`/
+     * `reactivate` are directly invokable via `/livewire/update` regardless of what the page
+     * renders. A crafted call against an already-`Deleted` user must surface as a validation
+     * error, not a 500.
+     */
+    public function test_delete_against_an_already_deleted_user_is_a_field_error_not_a_500(): void
+    {
+        $admin = User::factory()->superAdmin()->create();
+        $target = User::factory()->status(UserStatus::Deleted)->create();
+
+        Livewire::actingAs($admin)
+            ->test(UsersTable::class)
+            ->call('delete', $target->id)
+            ->assertHasErrors(['lifecycle']);
+    }
+
+    public function test_deactivate_against_an_already_deleted_user_is_a_field_error_not_a_500(): void
+    {
+        $admin = User::factory()->superAdmin()->create();
+        $target = User::factory()->status(UserStatus::Deleted)->create();
+
+        Livewire::actingAs($admin)
+            ->test(UsersTable::class)
+            ->call('deactivate', $target->id)
+            ->assertHasErrors(['lifecycle']);
+    }
+
+    public function test_reactivate_against_an_already_deleted_user_is_a_field_error_not_a_500(): void
+    {
+        $admin = User::factory()->superAdmin()->create();
+        $target = User::factory()->status(UserStatus::Deleted)->create();
+
+        Livewire::actingAs($admin)
+            ->test(UsersTable::class)
+            ->call('reactivate', $target->id)
+            ->assertHasErrors(['lifecycle']);
+    }
 }
