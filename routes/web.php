@@ -7,6 +7,7 @@ use App\Http\Controllers\ProfilePhotoController;
 use App\Livewire\Admin\CreateTrainerForm;
 use App\Livewire\Admin\EditUserForm;
 use App\Livewire\Admin\UsersTable;
+use App\Livewire\Availability\Grid;
 use App\Livewire\Family\ChildForm;
 use App\Livewire\Family\Overview as FamilyOverview;
 use App\Livewire\Family\PendingApprovals;
@@ -62,6 +63,11 @@ Route::middleware(['auth'])->group(function (): void {
         Route::view('/coach', 'dashboards.coach')->middleware('role:coach')->name('coach.dashboard');
         Route::view('/player', 'dashboards.player')->middleware('role:player')->name('player.dashboard');
 
+        // FR-015. A coach's own fixed weekly schedule — no default/override toggle, always
+        // trainer-specific (a coach has exactly one employer). Same component as /availability
+        // below; it branches on auth()->user()->role.
+        Route::get('/coach/my-times', Grid::class)->middleware('role:coach')->name('coach.my-times');
+
         // FR-008/FR-009/FR-010. Reached through identity relations, never a tenant-scoped query
         // (see the Slice C plan's Existing Context), so no `tenant` alias is needed here.
         Route::middleware('role:player')->group(function (): void {
@@ -71,6 +77,10 @@ Route::middleware(['auth'])->group(function (): void {
             });
 
             Route::get('/approvals', PendingApprovals::class)->name('approvals.index');
+
+            // FR-014. Player/parent Best Times: the default set, or an override for the active
+            // trainer (resolved by TrainerContext, same as everywhere else on this route group).
+            Route::get('/availability', Grid::class)->name('availability');
         });
 
         Route::prefix('admin')->name('admin.')->middleware('role:super_admin')->group(function (): void {
