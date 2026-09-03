@@ -53,6 +53,33 @@
                 <p class="text-sm text-ink-soft">No times set yet — add one below.</p>
             @endif
 
+            {{-- FR-014: a day is either a set of ranges or wholly "Not Available", never both.
+                 Checking a day here is stored as one row with no times and is_available = false. --}}
+            <fieldset class="border-t border-line/50 pt-3">
+                <legend class="text-sm font-medium text-ink">Not available</legend>
+                <p class="text-sm text-ink-soft">
+                    {{ $isCoach ? 'Days you cannot coach at all.' : 'Days you are not free at all.' }}
+                </p>
+
+                <div class="mt-2 flex flex-wrap gap-4">
+                    @foreach (\App\Enums\DayOfWeek::cases() as $day)
+                        <label class="flex items-center gap-2 text-sm">
+                            <input
+                                type="checkbox"
+                                value="{{ $day->value }}"
+                                wire:model="unavailableDays"
+                                class="control-check"
+                            >
+                            {{ $day->label() }}
+                        </label>
+                    @endforeach
+                </div>
+
+                @error('unavailableDays')
+                    <p class="mt-2 text-sm text-danger">{{ $message }}</p>
+                @enderror
+            </fieldset>
+
             <div class="flex items-center gap-3">
                 <button type="button" wire:click="addRange" class="btn-ghost">Add a time range</button>
                 <button type="submit" class="btn">Save</button>

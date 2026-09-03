@@ -52,6 +52,21 @@ final class Grid extends Component
      */
     public array $ranges = [];
 
+    /**
+     * FR-014's other half: days marked wholly "Not Available", as `DayOfWeek` values. A day here
+     * is stored as a single row with NULL times and `is_available = false` — the shape the
+     * resolver, the CRM filter and `CoachConflictChecker` already expect, since every one of them
+     * filters on `is_available` before reading times.
+     *
+     * Kept separate from `$ranges` rather than folded in as a flag per row: a "Not Available" day
+     * has no times at all, so sharing the row shape would mean carrying two dead inputs and a
+     * validation branch for them. Plain public, like `$ranges` — a tampered payload can send any
+     * scalars, so `validatedRanges()` re-validates every entry.
+     *
+     * @var list<int|string>
+     */
+    public array $unavailableDays = [];
+
     public function mount(): void
     {
         $actor = $this->actor();
@@ -142,16 +157,30 @@ final class Grid extends Component
         $this->trainerProfileId = app(TrainerContext::class)->id();
     }
 
+    /**
+     * Both halves of the resolved set round-trip back onto the screen. Before FR-014's
+     * "Not Available" control existed this filtered `is_available = false` rows out and never put
+     * them back, so the very next save silently deleted them — `SaveAvailability` replaces the
+     * whole set, so a row the screen cannot see is a row the screen destroys.
+     */
     protected function loadRanges(): void
     {
-        $this->ranges = app(AvailabilityResolver::class)
-            ->resolve($this->subject, $this->trainerProfileId)
+        $resolved = app(AvailabilityResolver::class)->resolve($this->subject, $this->trainerProfileId);
+
+        $this->ranges = $resolved
             ->filter(fn ($row): bool => $row->is_available)
             ->map(fn ($row): array => [
                 'day_of_week' => $row->day_of_week->value,
                 'start_time' => substr((string) $row->start_time, 0, 5),
                 'end_time' => substr((string) $row->end_time, 0, 5),
             ])
+            ->values()
+            ->all();
+
+        $this->unavailableDays = $resolved
+            ->reject(fn ($row): bool => $row->is_available)
+            ->map(fn ($row): int => $row->day_of_week->value)
+            ->unique()
             ->values()
             ->all();
     }
@@ -165,10 +194,16 @@ final class Grid extends Component
      * anything not already exactly that shape before either string ever reaches a comparison or a
      * query, and the times are then compared as actual times (via `strtotime`), never as strings.
      *
-     * @return list<array{day_of_week: int, start_time: string, end_time: string, is_available: bool}>
+     * Mutual exclusivity (FR-014): a day is either a set of ranges or wholly "Not Available",
+     * never both. Entering both is a field error on the offending range rather than a silent
+     * discard — dropping one side quietly is how a user loses a whole day's input without ever
+     * being told.
+     *
+     * @return list<array{day_of_week: int, start_time: ?string, end_time: ?string, is_available: bool}>
      */
     protected function validatedRanges(): array
     {
+        $unavailable = $this->validatedUnavailableDays();
         $result = [];
 
         foreach ($this->ranges as $index => $range) {
@@ -192,6 +227,12 @@ final class Grid extends Component
                 throw ValidationException::withMessages(["ranges.{$index}.end_time" => 'End time must be after the start time.']);
             }
 
+            if (in_array($day, $unavailable, true)) {
+                throw ValidationException::withMessages([
+                    "ranges.{$index}.day_of_week" => 'This day is marked Not Available — clear that first, or remove this range.',
+                ]);
+            }
+
             $result[] = [
                 'day_of_week' => $day,
                 'start_time' => $start.':00',
@@ -200,7 +241,39 @@ final class Grid extends Component
             ];
         }
 
+        foreach ($unavailable as $day) {
+            $result[] = [
+                'day_of_week' => $day,
+                'start_time' => null,
+                'end_time' => null,
+                'is_available' => false,
+            ];
+        }
+
         return $result;
+    }
+
+    /**
+     * `$unavailableDays` is browser-bound, so its entries are re-validated here exactly as the
+     * range days are — a checkbox payload is no more trustworthy than a select's.
+     *
+     * @return list<int>
+     */
+    protected function validatedUnavailableDays(): array
+    {
+        $days = [];
+
+        foreach ($this->unavailableDays as $value) {
+            $day = filter_var($value, FILTER_VALIDATE_INT);
+
+            if ($day === false || $day < 0 || $day > 6) {
+                throw ValidationException::withMessages(['unavailableDays' => 'Choose a valid day.']);
+            }
+
+            $days[] = $day;
+        }
+
+        return array_values(array_unique($days));
     }
 
     /** Exactly `H:i` (24-hour, one or two digit hour) — the shape `start_time`/`end_time` must be before `:00` is appended for a `TIME` column. */
