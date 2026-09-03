@@ -32,8 +32,16 @@ class AppServiceProvider extends ServiceProvider
      * to `true` before that guard ever ran — so a Super Admin could deactivate or GDPR-delete
      * their *own* account and lock the platform's last admin out irreversibly. FR-017/FR-018 do
      * not intend this; the self-guards are only authoritative once their abilities are listed here.
+     *
+     * `delete` is deliberately *not* listed here (Slice D finding 5): ability names are not
+     * namespaced, and `delete` is shared with `ShareLinkPolicy`/`TrainerPlayerPolicy`, both of
+     * which hard-require `role === Role::Trainer` — listing the bare string would have suspended
+     * the Super Admin bypass for every `delete` in the app, refusing a Super Admin those unrelated
+     * deletes outright. `registerGates()` below scopes `delete` to a `User` subject instead,
+     * mirroring `ImpersonationGuardrail::denies()`'s own identical scoping (and its comment naming
+     * these same two policies) rather than introducing a second, differently-shaped idiom.
      */
-    protected const NOT_BYPASSABLE = ['impersonate', 'deactivate', 'reactivate', 'delete'];
+    protected const NOT_BYPASSABLE = ['impersonate', 'deactivate', 'reactivate'];
 
     /**
      * Register any application services.
@@ -92,8 +100,15 @@ class AppServiceProvider extends ServiceProvider
 
         // Super Admin bypasses policies, but never while impersonating — the acting identity is
         // the target, and an admin id leaking into the gate would be a privilege hole (AD-005).
-        Gate::before(function (User $user, string $ability): ?bool {
+        Gate::before(function (User $user, string $ability, array $arguments = []): ?bool {
             if (in_array($ability, self::NOT_BYPASSABLE, true)) {
+                return null;
+            }
+
+            // `delete` on a User subject is UserPolicy::delete's own self-guard (see
+            // NOT_BYPASSABLE's docblock); `delete` on anything else (ShareLink, TrainerPlayer, …)
+            // is unrelated and must keep bypassing normally.
+            if ($ability === 'delete' && ($arguments[0] ?? null) instanceof User) {
                 return null;
             }
 

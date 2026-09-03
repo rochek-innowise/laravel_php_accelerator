@@ -4,8 +4,13 @@ declare(strict_types=1);
 
 namespace Tests\Feature\Authorization;
 
+use App\Enums\UserStatus;
+use App\Livewire\Admin\UsersTable;
+use App\Models\ShareLink;
+use App\Models\TrainerPlayer;
 use App\Models\User;
 use Illuminate\Support\Facades\Gate;
+use Livewire\Livewire;
 use Tests\TestCase;
 
 /**
@@ -63,14 +68,44 @@ final class SuperAdminSelfLifecycleTest extends TestCase
         $this->assertTrue(Gate::forUser($admin)->allows('delete', $other));
     }
 
-    public function test_the_livewire_row_actions_refuse_self_targeting(): void
+    /**
+     * Finding 9 (test quality): this replaces a test of the same name that never touched
+     * `UsersTable` at all — it re-ran the plain `Gate::forUser()` checks above via
+     * `$admin->cannot(...)`, which duplicates them and pins nothing about the Livewire row action
+     * its name promised. This version actually calls `UsersTable::delete()` acting as the admin.
+     * It also serves finding 5's "still cannot delete their own User" direction, alongside the
+     * ShareLink/TrainerPlayer tests below for the "still can" direction.
+     */
+    public function test_the_livewire_row_action_refuses_self_targeting(): void
     {
         $admin = User::factory()->superAdmin()->create();
 
-        $this->actingAs($admin);
+        Livewire::actingAs($admin)
+            ->test(UsersTable::class)
+            ->call('delete', $admin->id)
+            ->assertForbidden();
 
-        $this->assertTrue($admin->cannot('deactivate', $admin));
-        $this->assertTrue($admin->cannot('reactivate', $admin));
-        $this->assertTrue($admin->cannot('delete', $admin));
+        $this->assertSame(UserStatus::Active, $admin->fresh()->status);
+    }
+
+    /**
+     * Finding 5: `delete` is shared with ShareLinkPolicy/TrainerPlayerPolicy, both of which
+     * hard-require `role === Role::Trainer` and would refuse a Super Admin outright if the
+     * `NOT_BYPASSABLE` self-guard fix were made ability-name-wide instead of subject-scoped.
+     */
+    public function test_a_super_admin_can_still_delete_a_share_link(): void
+    {
+        $admin = User::factory()->superAdmin()->create();
+        $shareLink = ShareLink::factory()->create();
+
+        $this->assertTrue(Gate::forUser($admin)->allows('delete', $shareLink));
+    }
+
+    public function test_a_super_admin_can_still_delete_a_trainer_player_association(): void
+    {
+        $admin = User::factory()->superAdmin()->create();
+        $trainerPlayer = TrainerPlayer::factory()->create();
+
+        $this->assertTrue(Gate::forUser($admin)->allows('delete', $trainerPlayer));
     }
 }
