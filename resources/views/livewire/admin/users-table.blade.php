@@ -57,14 +57,12 @@
                                     <a href="{{ route('admin.users.edit', $user) }}" class="link">Edit</a>
 
                                     @can('impersonate', $user)
-                                        <form
-                                            method="POST"
-                                            action="{{ route('admin.impersonate.start', $user) }}"
-                                            onsubmit="return confirm('Impersonate {{ $user->name }}? Every action taken will be attributed to both of you.');"
-                                        >
-                                            @csrf
-                                            <button type="submit" class="btn-quiet btn-quiet-compact">Impersonate</button>
-                                        </form>
+                                        <button
+                                            type="button"
+                                            wire:click="impersonate({{ $user->id }})"
+                                            wire:confirm="Impersonate {{ $user->name }}? Every action taken will be attributed to both of you."
+                                            class="btn-quiet btn-quiet-compact"
+                                        >Impersonate</button>
                                     @endcan
 
                                     {{-- FR-017: history is preserved, and the button swaps with the status chip above. --}}

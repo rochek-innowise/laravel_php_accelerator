@@ -7,6 +7,7 @@ namespace App\Livewire\Admin;
 use App\Actions\Admin\AnonymizeUser;
 use App\Actions\Admin\DeactivateUser;
 use App\Actions\Admin\ReactivateUser;
+use App\Actions\Admin\StartImpersonation;
 use App\Enums\Role;
 use App\Enums\UserStatus;
 use App\Models\User;
@@ -49,6 +50,32 @@ final class UsersTable extends Component
         if (in_array($property, ['search', 'roleFilter', 'statusFilter'], true)) {
             $this->resetPage();
         }
+    }
+
+    /**
+     * Finding 1 (Slice D): replaces a raw `<form onsubmit="return confirm('...')">` whose
+     * confirmation string interpolated `$user->name` directly into a JS-parsing HTML attribute —
+     * `{{ }}`'s escaping decodes right back to a literal `'` there (an HTML attribute in a JS
+     * context double-decodes character references before the JS tokenizer ever sees them), so any
+     * user able to set their own name could break out of the string and run script in the Super
+     * Admin's origin. `wire:click`/`wire:confirm` (used by the sibling deactivate/reactivate/
+     * delete actions below) never puts the value through a JS parser at all — Livewire reads
+     * `wire:confirm` via `getAttribute()` and passes it to `confirm()` as data.
+     *
+     * Both existing gates stay in place: `@can('impersonate', $user)` still gates whether the
+     * button renders at all, and `StartImpersonation::handle()` still calls its own
+     * `Gate::authorize('impersonate', $target)` — the `$this->authorize()` call below is a third,
+     * matching the pattern deactivate/reactivate/delete already use on this same component.
+     */
+    public function impersonate(User $user, StartImpersonation $action): void
+    {
+        $this->authorize('impersonate', $user);
+
+        $action->handle(request(), $this->actor(), $user);
+
+        session()->flash('status', __('Now viewing as :name.', ['name' => $user->name]));
+
+        $this->redirect(route('dashboard'), navigate: true);
     }
 
     public function deactivate(User $user, DeactivateUser $deactivateUser): void

@@ -139,7 +139,7 @@ final class UsersDirectoryTest extends TestCase
     }
 
     /** FR-012: the row action is visible per @can('impersonate', $user), not a blanket button. */
-    public function test_the_impersonate_form_is_visible_only_for_an_eligible_target(): void
+    public function test_the_impersonate_button_is_visible_only_for_an_eligible_target(): void
     {
         $admin = User::factory()->superAdmin()->create();
         $eligible = User::factory()->create();
@@ -147,7 +147,29 @@ final class UsersDirectoryTest extends TestCase
 
         Livewire::actingAs($admin)
             ->test(UsersTable::class)
-            ->assertSeeHtml(route('admin.impersonate.start', $eligible))
-            ->assertDontSeeHtml(route('admin.impersonate.start', $otherAdmin));
+            ->assertSeeHtml("impersonate({$eligible->id})")
+            ->assertDontSeeHtml("impersonate({$otherAdmin->id})");
+    }
+
+    /**
+     * Finding 1 (Slice D): `$user->name` used to be interpolated into an inline
+     * `onsubmit="return confirm('...')"` attribute — an HTML attribute in a JS-parsing context,
+     * where `{{ }}`'s escaping decodes right back to a literal `'` before the JS tokenizer ever
+     * sees it. A name containing a payload like this one could break out of the confirm() string
+     * and run script in the Super Admin's origin. The fix removes the inline handler entirely
+     * (wire:confirm reads the attribute as data, never through a JS parser), so this pins that no
+     * executable-context payload survives anywhere in the rendered row.
+     */
+    public function test_a_malicious_name_does_not_reach_an_executable_context(): void
+    {
+        $admin = User::factory()->superAdmin()->create();
+        $payload = "'); alert(1); //";
+        User::factory()->create(['first_name' => $payload, 'last_name' => 'Evil']);
+
+        $html = Livewire::actingAs($admin)->test(UsersTable::class)->html();
+
+        $this->assertStringNotContainsString('onsubmit=', $html);
+        $this->assertStringNotContainsString($payload, $html);
+        $this->assertStringContainsString(e($payload), $html);
     }
 }
