@@ -1,5 +1,6 @@
 <?php
 
+use App\Http\Middleware\EnforceImpersonationTimeout;
 use App\Http\Middleware\EnsureAccountRemainsActive;
 use App\Http\Middleware\EnsureTrainerContext;
 use App\Http\Middleware\EnsureUserHasRole;
@@ -26,6 +27,11 @@ return Application::configure(basePath: dirname(__DIR__))
         // authenticated routes (profile, password, verification) and Livewire's update endpoint
         // must be covered too, or a deactivated session keeps mutating data (FR-017/FR-018).
         $middleware->appendToGroup('web', EnsureAccountRemainsActive::class);
+
+        // FR-012. Appended here — between EnsureAccountRemainsActive and EnsureTrainerContext —
+        // so a request whose impersonation is about to be force-stopped skips a wasted tenant
+        // resolution.
+        $middleware->appendToGroup('web', EnforceImpersonationTimeout::class);
 
         // Also appended to `web` rather than to a route group, and for the same reason: Livewire's
         // update endpoint must carry the tenant too. Without it a component that renders correctly

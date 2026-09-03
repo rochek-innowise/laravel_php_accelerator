@@ -24,7 +24,12 @@ final class ImpersonationGuardrailTest extends TestCase
      */
     protected function impersonateInSession(int $adminId): void
     {
-        $this->session(['impersonator_id' => $adminId]);
+        // impersonation_started_at is set too: EnforceImpersonationTimeout treats it as already
+        // expired otherwise, and would force-stop the very session this test is trying to set up.
+        $this->session([
+            'impersonator_id' => $adminId,
+            'impersonation_started_at' => now()->toISOString(),
+        ]);
         $this->app['request']->setLaravelSession($this->app['session']->driver());
     }
 
@@ -78,7 +83,10 @@ final class ImpersonationGuardrailTest extends TestCase
         $target = User::factory()->create();
 
         $this->actingAs($target);
-        $this->session(['impersonator_id' => User::factory()->superAdmin()->create()->id]);
+        $this->session([
+            'impersonator_id' => User::factory()->superAdmin()->create()->id,
+            'impersonation_started_at' => now()->toISOString(),
+        ]);
 
         $this->from('/user/password')->put('/user/password', [
             'current_password' => 'password',

@@ -1,5 +1,6 @@
 <?php
 
+use App\Jobs\CloseStaleImpersonationLogsJob;
 use App\Jobs\ExpirePurchaseApprovalsJob;
 use Illuminate\Foundation\Inspiring;
 use Illuminate\Support\Facades\Artisan;
@@ -13,3 +14,8 @@ Artisan::command('inspire', function () {
 // pending purchase approvals never auto-expire (NFR-009) — the job's own conditional-update guard
 // makes a late run safe, just delayed.
 Schedule::job(new ExpirePurchaseApprovalsJob)->everyFifteenMinutes();
+
+// AD-008's own risk restated for Slice D: without this running, a tab abandoned mid-impersonation
+// leaves the compliance report showing an open-ended row forever. The job's own conditional close
+// (ended_at = started_at + 60min, not now()) makes a late run safe, just delayed.
+Schedule::job(new CloseStaleImpersonationLogsJob)->everyFifteenMinutes();

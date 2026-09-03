@@ -39,7 +39,7 @@ class ImpersonationLogFactory extends Factory
 
             return [
                 'ended_at' => $endedAt,
-                'duration_seconds' => $endedAt->diffInSeconds($startedAt),
+                'duration_seconds' => abs($endedAt->getTimestamp() - $startedAt->getTimestamp()),
             ];
         });
     }

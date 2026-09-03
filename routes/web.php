@@ -2,6 +2,7 @@
 
 declare(strict_types=1);
 
+use App\Http\Controllers\Admin\ImpersonationController;
 use App\Http\Controllers\DashboardController;
 use App\Http\Controllers\ProfilePhotoController;
 use App\Livewire\Admin\CreateTrainerForm;
@@ -63,6 +64,10 @@ Route::middleware(['auth'])->group(function (): void {
         Route::view('/coach', 'dashboards.coach')->middleware('role:coach')->name('coach.dashboard');
         Route::view('/player', 'dashboards.player')->middleware('role:player')->name('player.dashboard');
 
+        // FR-012. Deliberately outside role:super_admin — the acting session is the target, who
+        // is never a Super Admin, once impersonation is live.
+        Route::post('/impersonate/stop', [ImpersonationController::class, 'stop'])->name('impersonate.stop');
+
         // FR-015. A coach's own fixed weekly schedule — no default/override toggle, always
         // trainer-specific (a coach has exactly one employer). Same component as /availability
         // below; it branches on auth()->user()->role.
@@ -87,6 +92,10 @@ Route::middleware(['auth'])->group(function (): void {
             Route::get('/users', UsersTable::class)->name('users.index');
             Route::get('/users/create', CreateTrainerForm::class)->name('users.create');
             Route::get('/users/{user}/edit', EditUserForm::class)->name('users.edit');
+
+            // FR-012. POST and CSRF-protected — a GET impersonation route would be trivially
+            // CSRF-exploitable. The Gate::authorize('impersonate', ...) call lives in the Action.
+            Route::post('/impersonate/{user}', [ImpersonationController::class, 'start'])->name('impersonate.start');
         });
     });
 });
