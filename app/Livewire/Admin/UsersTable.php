@@ -4,6 +4,9 @@ declare(strict_types=1);
 
 namespace App\Livewire\Admin;
 
+use App\Actions\Admin\AnonymizeUser;
+use App\Actions\Admin\DeactivateUser;
+use App\Actions\Admin\ReactivateUser;
 use App\Enums\Role;
 use App\Enums\UserStatus;
 use App\Models\User;
@@ -16,6 +19,12 @@ use Livewire\WithPagination;
 /**
  * FR-005: the Super Admin directory. Search is tool-scoped by requirement — it never fans out
  * across unrelated tables — and pagination stays server-side for the 10k-user target (AD-012).
+ *
+ * FR-017/FR-018 (Slice D Track C): deactivate, reactivate and delete are Livewire methods on this
+ * same component rather than three redirect-only Controller endpoints — matching
+ * `Family\Overview::remove()`'s established `wire:click` + `wire:confirm` pattern. Each method
+ * authorizes against the matching `UserPolicy` ability and delegates entirely to its Action; the
+ * Action owns the "already Deleted" guard, so this component never re-implements it.
  */
 final class UsersTable extends Component
 {
@@ -40,6 +49,41 @@ final class UsersTable extends Component
         if (in_array($property, ['search', 'roleFilter', 'statusFilter'], true)) {
             $this->resetPage();
         }
+    }
+
+    public function deactivate(User $user, DeactivateUser $deactivateUser): void
+    {
+        $this->authorize('deactivate', $user);
+
+        $deactivateUser->handle($user);
+
+        session()->flash('status', "{$user->name} has been deactivated.");
+    }
+
+    public function reactivate(User $user, ReactivateUser $reactivateUser): void
+    {
+        $this->authorize('reactivate', $user);
+
+        $reactivateUser->handle($user);
+
+        session()->flash('status', "{$user->name} has been reactivated.");
+    }
+
+    public function delete(User $user, AnonymizeUser $anonymizeUser): void
+    {
+        $this->authorize('delete', $user);
+
+        $anonymizeUser->handle($user, $this->actor());
+
+        session()->flash('status', "{$user->name}'s personal data has been permanently anonymized.");
+    }
+
+    protected function actor(): User
+    {
+        /** @var User $actor */
+        $actor = auth()->user();
+
+        return $actor;
     }
 
     public function render(): View

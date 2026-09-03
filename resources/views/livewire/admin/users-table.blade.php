@@ -67,9 +67,40 @@
                                         </form>
                                     @endcan
 
-                                    {{-- Slice D Track C: deactivate, delete. --}}
-                                    <button type="button" disabled class="btn-quiet btn-quiet-compact">Deactivate</button>
-                                    <button type="button" disabled class="btn-quiet btn-quiet-compact">Delete</button>
+                                    {{-- FR-017: history is preserved, and the button swaps with the status chip above. --}}
+                                    @can('deactivate', $user)
+                                        @if ($user->status === \App\Enums\UserStatus::Active)
+                                            <button
+                                                type="button"
+                                                wire:click="deactivate({{ $user->id }})"
+                                                wire:confirm="Deactivate {{ $user->name }}? Their history is preserved everywhere it already appears, and you can reactivate them at any time."
+                                                class="btn-quiet btn-quiet-compact"
+                                            >Deactivate</button>
+                                        @endif
+                                    @endcan
+
+                                    @can('reactivate', $user)
+                                        @if ($user->status === \App\Enums\UserStatus::Inactive)
+                                            <button
+                                                type="button"
+                                                wire:click="reactivate({{ $user->id }})"
+                                                wire:confirm="Reactivate {{ $user->name }}? They will regain access immediately."
+                                                class="btn-quiet btn-quiet-compact"
+                                            >Reactivate</button>
+                                        @endif
+                                    @endcan
+
+                                    {{-- FR-018: destructive and irreversible — anonymizes PII, never restores. --}}
+                                    @can('delete', $user)
+                                        @if ($user->status !== \App\Enums\UserStatus::Deleted)
+                                            <button
+                                                type="button"
+                                                wire:click="delete({{ $user->id }})"
+                                                wire:confirm="Permanently delete {{ $user->name }}? This is irreversible: their personal data will be anonymized. Historical records (rosters, attendance, payments) are preserved and will show as &quot;Deleted User&quot;."
+                                                class="btn-quiet btn-quiet-compact"
+                                            >Delete</button>
+                                        @endif
+                                    @endcan
                                 </div>
                             </td>
                         </tr>
