@@ -66,6 +66,25 @@ ddev ssh                            # shell inside the web container
 
 Run every PHP command through `ddev exec`. The host PHP is not the project's PHP.
 
+### The queue worker is required
+
+`QUEUE_CONNECTION` is `database`, and every notification and email in this application is
+`ShouldQueue`. Without a worker they pile up in the `jobs` table and **nothing is ever delivered** —
+no invitation emails, no password resets, no in-app notification bell entries. Keep one running in
+its own terminal while testing:
+
+```bash
+ddev exec php artisan queue:work
+```
+
+Or drain whatever has accumulated and exit:
+
+```bash
+ddev exec php artisan queue:work --stop-when-empty
+```
+
+Outgoing mail is captured by Mailpit rather than sent — open it with `ddev mailpit`.
+
 ### Scheduled jobs
 
 Two jobs run every 15 minutes and matter to Epic-01's behaviour:
