@@ -60,7 +60,9 @@ class UserDeletionLog extends Model
     {
         $salt = config('gdpr.email_hash_salt');
 
-        if (empty($salt)) {
+        // Finding 8 (Slice D): empty() treats a salt of "0" as unconfigured (PHP's own
+        // falsy-string quirk), which would fail this fail-closed check open for that one value.
+        if ($salt === null || $salt === '') {
             throw new RuntimeException('GDPR_EMAIL_HASH_SALT is not configured.');
         }
 

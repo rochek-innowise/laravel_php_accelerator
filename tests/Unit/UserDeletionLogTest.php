@@ -35,4 +35,17 @@ final class UserDeletionLogTest extends TestCase
 
         UserDeletionLog::hashEmail('zin@example.test');
     }
+
+    /**
+     * Finding 8 (hardening): empty() treats the string "0" as falsy, so a salt of exactly "0"
+     * previously read as unconfigured and did not throw — this pins the fixed, explicit check.
+     */
+    public function test_a_salt_of_zero_is_treated_as_configured_not_unconfigured(): void
+    {
+        config(['gdpr.email_hash_salt' => '0']);
+
+        $hash = UserDeletionLog::hashEmail('zin@example.test');
+
+        $this->assertSame($hash, UserDeletionLog::hashEmail('zin@example.test'));
+    }
 }
