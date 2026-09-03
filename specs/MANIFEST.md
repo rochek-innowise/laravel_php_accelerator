@@ -6,7 +6,7 @@ A multi-tenant Laravel platform where independent trainers run their training or
 
 | File | Purpose | Depends On | Last Updated |
 |------|---------|------------|--------------|
-| architect-architecture.md | System design, layering, tenancy, architecture decisions | - | 2026-09-02 (Slice C added) |
+| architect-architecture.md | System design, layering, tenancy, architecture decisions | - | 2026-09-03 (Slice D added) |
 | api-designer-spec.md | Endpoints, schemas, authentication | architect-architecture | not created — no public API in Epic-01 |
 | frontend-design-spec.md | Pages, components, state management | architect-architecture | not created |
 | docs-generator-implementation.md | Build process, deployment, tooling | - | not created |

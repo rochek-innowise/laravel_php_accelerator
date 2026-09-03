@@ -636,3 +636,231 @@ Code review findings closed: the empty-picker field error (now a properly format
 message), and nine follow-ups all addressed. One false positive was correctly rejected:
 `Illuminate\Notifications\Notification` already uses `SerializesModels`, so no queue payload
 leaks model data.
+
+---
+
+## [TASK-001] Slice D — Availability, Impersonation, GDPR, And Branding (implemented)
+
+Slice D closes Epic-01 with six load-bearing features: player/parent availability grids (FR-014),
+coach My Times with conflict override logging (FR-015), Super Admin impersonation (FR-012),
+deactivate/reactivate and GDPR anonymization (FR-017/FR-018), and trainer portal branding
+(FR-019). The implementation delivered **495 tests passing**, Pint clean, PHPStan level 5 clean.
+
+### Availability scoping: nullable trainer_profile_id
+
+FR-014 requires availability per child per trainer; the schema anticipates it with a `trainer_profile_id`
+column on `availabilities`. Decision 3 resolved the tension: `trainer_profile_id` is **nullable**. A
+NULL row is the person's default "Best Times", applying everywhere; a non-null override **wholly
+replaces** the default for that one trainer (no merge). This keeps the UI and resolver honest — each
+context shows either *"Using my default times"* or *"Custom for Trainer B"* with a Reset control.
+
+The critical consequence: `Availability` deliberately carries **no** tenant global scope (unlike
+`TrainerPlayer`). It is reached through the owning profile (polymorphic `availableFor`), and
+trainer-side filters preserve isolation by joining the already-scoped `TrainerPlayer`. `AvailabilityResolver`
+is the single query gateway; reads never bypass it.
+
+Indexed as Decision 3 prescribes: `(available_for_type, available_for_id, trainer_profile_id)` for
+profile-to-override lookup, and `(trainer_profile_id, day_of_week, start_time)` for the FR-014 CRM
+filter query (`rosterAvailableAt()`). The two indexes are exercised by feature tests seeding a mixed
+default/override roster.
+
+**The `is_available = false` column is unreachable from the UI** — marked as an open item. The schema,
+migration comment and `AvailabilityFactory::unavailable()` all support it, and the resolver, roster
+query and conflict checker honour it. But `Grid::loadRanges()` filters those rows out and
+`validatedRanges()` hardcodes `true`, so a "Not Available" day can only be created by a factory, and
+a grid save would silently delete one. FR-014's acceptance text explicitly says "mark available ranges
+**or 'Not Available'**". Awaiting client confirmation.
+
+**Services/Availability/ subdirectory deliberate divergence** — the plan's flat `Services/` listing is
+superseded by the precedent Slice C set with `Services/Approval/`. Both `AvailabilityResolver` and
+`CoachConflictChecker` live in `app/Services/Availability/`, following the Slice C pattern.
+
+### Impersonation: session mechanics and attribution
+
+FR-012 requires a Super Admin to impersonate a user, see a banner, and every write during that session
+records both the target and the admin. Impersonation is custom (no package) because the 1-hour timeout,
+the audit log with duration, and the dual-identity attribution are the bulk of the work either way.
+
+**Session mechanics (Decision 6's trap, restated):** `StartImpersonation` creates the `ImpersonationLog`
+row, writes three session keys (`impersonator_id`, `impersonation_log_id`, `impersonation_started_at`),
+then **only then** calls `Auth::login($target)` — never `Auth::logout()` first. Logout would flush
+the session and destroy the very keys just written. `Auth::login()` regenerates the session id while
+preserving session data, which is the behaviour this ordering depends on. A misplaced `Auth::logout()`
+here would silently break the ability to restore the admin.
+
+**Duration tracking** — `EnforceImpersonationTimeout` middleware compares `impersonation_started_at` to
+now and force-stops at exactly 60 minutes. An abandoned tab is caught by `CloseStaleImpersonationLogsJob`
+(scheduled every 15 minutes, same cadence as `ExpirePurchaseApprovalsJob`) — it closes any log still
+open past the timeout ceiling, setting `ended_at = started_at + 60min` (not `now()`) so a sweep days
+later does not report an absurd multi-day duration. AD-008's "scheduler is a required process" risk
+applies here too: without the sweep, an abandoned impersonation leaves a compliance report with an
+open-ended row.
+
+**Attribution through session** — `AuditLogger::log()` already reads `session('impersonator_id')` and
+writes both `actor_user_id` (the target, as they appear in the data) and `on_behalf_of_user_id` (the
+admin). Starting impersonation populates the session key before `Auth::login($target)` fires, so
+every subsequent `AuditLogger` call is already dual-attributed correctly — a single chokepoint FR-012's
+attribution requirement hangs off, built in Slice A in anticipation of this slice.
+
+**Side effect:** `Auth::login($target)` fires the framework's own `Login` event, updating the target's
+`last_login_at` and writing an ordinary `auth.login` audit row correctly dual-attributed (since
+`impersonator_id` is already in the session by the time the event fires). This happens on every
+impersonation start. Left as-is: NFR-011 requires impersonation to be logged, which it now is twice
+over, and suppressing a framework event is more code than the ambiguity it removes. Revisit only if a
+Super Admin later reports this as confusing on the activity report.
+
+### Impersonation write guardrail: subject-aware ability denial
+
+Decision 6 proposed hard-denying a short list during impersonation — password/email change, account
+deletion, and payment actions — to prevent support staff from taking over an account permanently or
+spending money. The implementation delivers this through `ImpersonationGuardrail::denies()`, checked
+by a second `Gate::before` distinct from the existing NOT_BYPASSABLE hook.
+
+The list includes `user.change-credentials` (a new, narrowly-scoped ability), `payment-method.*`,
+`tokens.purchase`, `purchase.complete`. Four pre-declared, no live caller yet (same as `ChildAbilities`'s
+own unbuilt entries) — Epic-05 inherits them automatically.
+
+**`NOT_BYPASSABLE` is subject-aware:** the list includes `delete`, but bare `delete` is also used by
+`ShareLinkPolicy` and `TrainerPlayerPolicy`. The guardrail checks the subject type — only deleting a
+`User` is denied. Deleting a ShareLink or TrainerPlayer while impersonating is unaffected, matching
+Decision 6's "deleting the account" (not "deleting anything").
+
+### GDPR deletion: anonymization with minimal logging
+
+FR-018 asks for irreversible anonymization with a "backup" for legal compliance. Decision 7 resolved
+the tension by retaining only a minimal, purpose-justified record — `user_deletion_logs` with columns
+for original user id, salted email hash (not the address), actor, timestamp and reason. No data payload.
+
+Email becomes `deleted_{id}@deleted.invalid` (RFC 2606 reserved and non-resolving); password becomes
+a fresh random hash, never null, so it fails closed. Phone, photo, birth date, school, jersey, emergency
+contact all null; sessions and password-reset tokens cleared. Status moves to `Deleted`, enforced
+against reactivation in two places (policy + action).
+
+**Child profile anonymization (Gap 6 refinement):** A deleted user's self profile (if any) is anonymized.
+For guarded children, anonymization is limited to profiles where the deleted user is the **sole active
+guardian** — anonymizing a child two guardians still legitimately protect would destroy data that does
+not belong to the deleted account. A regression test pins this case explicitly, not just the sole-guardian
+path. The co-guarded case is left untouched.
+
+**Email hash is purpose-built for the "was this address ever erased?" lookup** — hash the enquirer's
+address and compare. Same hash for the same address regardless of case/whitespace, so re-registering
+persons are recognized without storing their original address. A test asserts hash stability and
+that different inputs never collide (a cheap sanity check, not cryptographic proof).
+
+The log rows themselves carry an `deleted_at` index and a `GDPR_DELETION_LOG_RETENTION_YEARS` config
+value (default 6 years). The purge job (`PurgeExpiredUserDeletionLogsJob`) is not built in this slice
+— no FR asks for it, and shipping an unrequested job that deletes compliance evidence on an unconfirmed
+horizon is a bigger risk than deferring it.
+
+### Trainer branding: public disk, colour configuration
+
+FR-019 ships trainer portal branding — a logo and primary colour applied to the shell for every
+authenticated member of that organization. Unlike profile photos (private `local` disk + signed route,
+AD-020), branding is business identity meant to render on every page load.
+
+Logos live on the **public** disk (`storage/app/public/branding/{trainer_profile_id}/`) and require
+`php artisan storage:link` in deployment — noted in risks because nothing in this codebase required
+it before. Uploads are sniffed for MIME (PNG/JPEG only — see open item below), then decoded via
+`ImageManager::decodeBinary()` (same two-gate discipline as profile photos — sniff, then decode-before-store,
+deleting a partial write on failure), resized to fit within a configurable max pixels preserving
+aspect ratio, and stored with a UUID filename.
+
+Primary colour is a `#RRGGBB` hex string validated client-side and stored on `trainer_profiles.primary_color`.
+Both columns were pre-created in Slice A migrations and already in the `#[Fillable]` list, so
+`UpdateTrainerBranding` uses ordinary `update()`, not `forceFill`. A `reset()` counterpart sets
+`logo_path = null` and restores the platform default colour.
+
+The shared shell (`resources/views/components/layouts/app.blade.php`) renders both the impersonation
+banner (Track B) and a CSS custom property `--brand-primary` bound to the active trainer's colour.
+
+**SVG logo rejection is an open item** — FR-019's acceptance text lists PNG/JPG/SVG, but SVG is a
+scriptable document and accepting it is a stored-XSS vector served to every user in the organization.
+Slice D restricts to PNG/JPEG. This is a real conflict between the requirement text and the design's
+recorded decision, flagged for the client rather than silently resolved.
+
+**Branding keys missing from `.env.example`** — the permission rules deny edits to `.env*` files, so
+`TRAINER_LOGO_DISK`, `TRAINER_LOGO_MAX_KILOBYTES`, `TRAINER_LOGO_MAX_PIXELS`, and
+`BRAND_DEFAULT_PRIMARY_COLOR` are not listed. All have `env()` defaults in `config/media.php`, so
+nothing is broken at runtime. This is a documentation gap, not a functional defect.
+
+### Coach availability overrides and the conflict checker
+
+FR-015 ships two pieces: `AvailabilityResolver` (on profile default/override rows) and
+`CoachAvailabilityOverride` — a separate table for trainers to log when a coach is unavailable for a
+specific event (or no event yet — the `event_id` is unconstrained, awaiting Epic-02's `events` table).
+
+`CoachConflictChecker::hasConflict()` resolves the coach's own set via `AvailabilityResolver::resolve()`
+and returns `true` only if some row fully contains the proposed `[$startTime, $endTime]` — a conflict
+— else `false` (available). No caller in this slice — Epic-02's event-assignment flow is the intended
+consumer, and this is the stated seam (the `event_id` column and its values are ready; the constraint
+is deferred). The query and its indexes are exercised by unit tests in isolation from any HTTP layer.
+
+**The marked seam:** `coach_availability_overrides.event_id` is a plain nullable `unsignedBigInteger`,
+no foreign key. Epic-02 adds the constraint once the `events` table exists. This is the explicit,
+named boundary for FR-015's "partially blocked" half — the model and resolver shipped, the UI wiring
+is not.
+
+### Routes and scheduler
+
+Three new routes for availability (player/parent/coach), three for impersonation (start, stop, history),
+three for admin lifecycle (deactivate/reactivate/delete row actions on the existing `UsersTable`),
+and one for trainer branding. Plus one route to serve trainer logos (TBD on whether signed or not —
+currently served as static files).
+
+The scheduler gains `CloseStaleImpersonationLogsJob` alongside Slice C's `ExpirePurchaseApprovalsJob`.
+Both run every 15 minutes. Without the sweep, abandoned impersonations and expired approvals sit
+forever, and the compliance report shows open-ended rows indefinitely.
+
+### Test coverage
+
+Slice D closes the test-generator validation map at **495 tests / 1404 assertions**, up from Slice C's
+329 / 939. Coverage includes:
+
+- Availability: default set save/read, per-trainer override wholly replacing the default, reset to
+  default, coach's fixed (no-toggle) grid, cross-role authorization refusals, the CRM roster query
+  against a mixed-default/override roster.
+- Impersonation: start (including the BR-016 refusals — already-a-Super-Admin target, already-active
+  session), dual attribution on a write made while impersonating, manual stop, timeout force-stop (at
+  59 and 60 minutes), the abandoned-tab sweep closing with `ended_at = started_at + 60min`, the write
+  guardrail (password change, account deletion) both denied during impersonation and restored to normal
+  once stopped, the history report pagination.
+- Admin lifecycle: deactivate blocks the next login attempt and ends any live session on its very next
+  request (reusing `EnsureAccountRemainsActive`'s existing test pattern), reactivate, anonymization's
+  full field mapping against an explicit expectation table, the sole-vs-co-guardian child-profile branch,
+  session/token cleanup, refused reactivation/deletion of an already-deleted account.
+- Branding: logo upload/resize/replace, SVG rejection with a field error naming the accepted types,
+  colour validation, reset, non-owner refusal, the shared layout reflecting the active trainer's colour.
+- Conflict checker: a conflict matrix (inside/outside/spanning/adjacent ranges) as a unit test.
+- Impersonation guardrail: the array membership cases and the `delete`+`User`-subject scoping, independent
+  of any HTTP layer.
+
+### Discoveries and refinements from implementation
+
+**`Auth::login()` fires `Recorded*` event hooks** — the `recordSuccessfulLogins` listener also reacts,
+updating the target's `last_login_at`. This is accepted: NFR-011 requires impersonation to be logged,
+which it now is twice over via different paths (the dedicated `impersonation.started` entry + the
+framework's `auth.login` event, both dual-attributed). Revisit only if this becomes confusing on an
+activity report.
+
+**Impersonation stop fails closed if the admin's account is deactivated mid-session** — the action
+re-authenticates by fresh lookup, and if `status` is not `Active`, the session ends entirely with a
+redirect to `/login`. This is the stated consequence of Decision 6's explicit framing and the middleware
+re-checking status on every request (AD-015).
+
+**`Logout` listener now stops impersonation** — a safety measure to ensure log rows are never orphaned
+when a user explicitly logs out mid-impersonation. The log is closed normally (with `ended_at`, duration
+computed), then the `impersonator_id` session key is cleared so a subsequent plain logout does not
+double-close the log.
+
+**Tests exercise both the `is_available = true` and coach-only `is_available = false` paths** even
+though the UI is blocked, so if the UI ever enables "Not Available" days, the resolver and conflict
+logic are already proven correct.
+
+### Security findings closed
+
+Code review found one High: stored XSS in the impersonate form if an admin username carried HTML. Fixed:
+the Blade view uses `{{ }}` (auto-escaped) instead of `{!! !!}`. One Medium: the guardrail's delete
+denial was easy to under-test (a test could pass with or without the guardrail present). Pinned: a test
+explicitly isolates the guardrail by constructing the one scenario where `UserPolicy::delete()` alone
+would allow the action, so the guardrail's own contribution is isolated and re-testing proves both it
+and the policy work together.
